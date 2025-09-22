@@ -8,9 +8,22 @@ const envBase =
 // 🧼 Ensure there is no trailing slash so Axios handles paths predictably
 const normalizedEnvBase = envBase.replace(/\/+$/, '');
 
-const API_BASE =
-  normalizedEnvBase ||
-  `${window.location.protocol}//${window.location.hostname}:5000`;
+const resolveBrowserBase = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const { protocol, hostname, origin } = window.location;
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+
+  if (localHosts.has(hostname)) {
+    return `${protocol}//${hostname}:5000`;
+  }
+
+  return origin;
+};
+
+const API_BASE = normalizedEnvBase || resolveBrowserBase();
 
 // ✅ Create axios instance
 const api = axios.create({
