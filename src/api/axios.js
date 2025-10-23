@@ -1,47 +1,10 @@
 // src/api/axios.js
 import axios from 'axios';
 
-// ✅ Use REACT_APP_API_BASE (or legacy REACT_APP_API_BASE_URL) or fall back to current host
-const envBase =
-  process.env.REACT_APP_API_BASE ?? process.env.REACT_APP_API_BASE_URL ?? '';
-
-// 🧼 Ensure there is no trailing slash so Axios handles paths predictably
-const normalizedEnvBase = envBase.replace(/\/+$/, '');
-
-const resolveBrowserBase = () => {
-  if (typeof window === 'undefined') {
-    return { primary: '', fallback: '' };
-  }
-  
-  const { protocol, hostname, origin } = window.location;
-  const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
-  const isIPAddress = /^(\d+\.){3}\d+$/.test(hostname) || hostname.includes(':');
-
-  if (localHosts.has(hostname) || hostname.endsWith('.local')) {
-    const localBackend = `${protocol}//${hostname}:5000`;
-    return { primary: localBackend, fallback: localBackend };
-  }
-
-  if (isIPAddress) {
-    const directHost = `${protocol}//${hostname}`;
-    return { primary: directHost, fallback: directHost };
-  }
-
-  if (hostname.startsWith('api.')) {
-    const apiHost = `${protocol}//${hostname}`;
-    return { primary: apiHost, fallback: apiHost };
-  }
-
-  const bareHostname = hostname.replace(/^www\./, '');
-  const apiHostname = `api.${bareHostname}`;
-  const apiURL = `${protocol}//${apiHostname}`;
-
-  return { primary: apiURL, fallback: origin };
-};
-
-const { primary: browserPrimary } = resolveBrowserBase();
-
-const API_BASE = normalizedEnvBase || browserPrimary;
+// ✅ Use REACT_APP_API_BASE env var or fall back to current host (helpful on LAN)
+const API_BASE =
+  process.env.REACT_APP_API_BASE ||
+  `${window.location.protocol}//${window.location.hostname}:5000/`;
 
 // ✅ Create axios instance
 const api = axios.create({
