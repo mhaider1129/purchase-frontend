@@ -18,23 +18,23 @@ const resolveBrowserBase = () => {
   const isIPAddress = /^(\d+\.){3}\d+$/.test(hostname) || hostname.includes(':');
 
   if (localHosts.has(hostname) || hostname.endsWith('.local')) {
-    const localBackend = ${protocol}//${hostname}:5000;
+    const localBackend = `${protocol}//${hostname}:5000`;
     return { primary: localBackend, fallback: localBackend };
   }
 
   if (isIPAddress) {
-    const directHost = ${protocol}//${hostname};
+    const directHost = `${protocol}//${hostname}`;
     return { primary: directHost, fallback: directHost };
   }
 
   if (hostname.startsWith('api.')) {
-    const apiHost = ${protocol}//${hostname};
+    const apiHost = `${protocol}//${hostname}`;
     return { primary: apiHost, fallback: apiHost };
   }
 
   const bareHostname = hostname.replace(/^www\./, '');
-  const apiHostname = api.${bareHostname};
-  const apiURL = ${protocol}//${apiHostname};
+  const apiHostname = `api.${bareHostname}`;
+  const apiURL = `${protocol}//${apiHostname}`;
 
   return { primary: apiURL, fallback: origin };
 };
@@ -57,7 +57,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = Bearer ${token};
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -86,7 +86,7 @@ api.interceptors.response.use(
     
     // General logging
     if (error.response) {
-      console.error(❌ ${error.response.status}: ${error.response.data.message});
+      console.error(`❌ ${error.response.status}: ${error.response.data.message}`);
     } else {
       console.error('❌ Network or Server error:', error.message);
     }
