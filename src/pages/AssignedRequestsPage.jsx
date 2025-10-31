@@ -136,6 +136,7 @@ const AssignedRequestsPage = () => {
   const [attachments, setAttachments] = useState([]);
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
+  const [bulkUpdatingRequestId, setBulkUpdatingRequestId] = useState(null);
   const {
     expandedApprovalsId,
     approvalsMap,
@@ -316,6 +317,59 @@ const AssignedRequestsPage = () => {
     }
   };
 
+  const handleAutoPurchaseAll = async (requestId) => {
+    if (expandedRequestId !== requestId) {
+      return;
+    }
+
+    if (!items.length) {
+      alert('No items available to update for this request.');
+      return;
+    }
+
+    const updatableItems = items.filter((item) => {
+      const requestedQty = Number(item.quantity ?? 0);
+      return item.id && !Number.isNaN(requestedQty) && requestedQty > 0;
+    });
+
+    if (updatableItems.length === 0) {
+      alert('Items must have a requested quantity greater than zero to be auto-filled.');
+      return;
+    }
+
+    const shouldProceed = window.confirm(
+      'This will copy the requested quantity into the purchased quantity and mark every item as purchased. Continue?',
+    );
+
+    if (!shouldProceed) {
+      return;
+    }
+
+    setBulkUpdatingRequestId(requestId);
+    try {
+      for (const item of updatableItems) {
+        const requestedQty = Number(item.quantity ?? 0);
+
+        await axios.put(`/api/requested-items/${item.id}/purchased-quantity`, {
+          purchased_quantity: requestedQty,
+        });
+
+        await axios.put(`/api/requested-items/${item.id}/procurement-status`, {
+          procurement_status: 'purchased',
+          procurement_comment: item.procurement_comment || '',
+        });
+      }
+
+      await fetchItems(requestId);
+      alert('All items were marked as purchased using their requested quantities.');
+    } catch (err) {
+      console.error('❌ Error performing bulk purchase update:', err);
+      alert('Failed to update all items. Some items may not have been updated.');
+    } finally {
+      setBulkUpdatingRequestId(null);
+    }
+  };
+
   useEffect(() => {
     fetchAssignedRequests();
   }, [resetApprovals]);
@@ -385,13 +439,26 @@ const AssignedRequestsPage = () => {
           requests.map((request) => {
             const summary = request.status_summary || {};
             const autoTotal = autoTotals[request.id] ?? summary.calculated_total_cost ?? null;
+            const isUrgent = Boolean(request?.is_urgent);
+            const containerClasses = [
+              'mb-6 border rounded-lg p-5 bg-white shadow-sm transition',
+              isUrgent ? 'border-red-300 ring-1 ring-red-200/70 bg-red-50/70' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
             return (
-              <div key={request.id} className="mb-6 border rounded-lg p-5 bg-white shadow-sm">
+              <div key={request.id} className={containerClasses}>
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      <strong className="text-gray-700">Request ID:</strong> {request.id}
-                    </p>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-700">Request ID: {request.id}</p>
+                      {isUrgent && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-700 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
+                          <span className="block h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                          Urgent
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">
                       <strong className="text-gray-700">Type:</strong> {request.request_type}
                     </p>
@@ -408,21 +475,21 @@ const AssignedRequestsPage = () => {
                     )}
                   </div>
 
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => toggleExpand(request.id)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    {expandedRequestId === request.id ? 'Hide Items' : 'View Items'}
-                  </button>
-                  <button
-                    className="text-blue-600 underline"
-                    onClick={() => toggleApprovals(request.id)}
-                    disabled={loadingApprovalsId === request.id}
-                  >
-                    {expandedApprovalsId === request.id ? 'Hide Approvals' : 'View Approvals'}
-                  </button>
-                </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <button
+                        onClick={() => toggleExpand(request.id)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                      >
+                        {expandedRequestId === request.id ? 'Hide Items' : 'View Items'}
+                      </button>
+                      <button
+                        className="text-blue-600 underline"
+                        onClick={() => toggleApprovals(request.id)}
+                        disabled={loadingApprovalsId === request.id}
+                      >
+                        {expandedApprovalsId === request.id ? 'Hide Approvals' : 'View Approvals'}
+                      </button>
+                    </div>
                 </div>
 
               {expandedApprovalsId === request.id && (
@@ -430,6 +497,7 @@ const AssignedRequestsPage = () => {
                   <ApprovalTimeline
                     approvals={approvalsMap[request.id]}
                     isLoading={loadingApprovalsId === request.id}
+                    isUrgent={Boolean(request?.is_urgent)}
                   />
                 </div>
               )}
@@ -492,41 +560,69 @@ const AssignedRequestsPage = () => {
                     ) : items.length === 0 ? (
                       <p className="text-gray-500">No items found for this request.</p>
                     ) : (
-                      ITEM_SECTION_CONFIG.map(({ key, title, description, tone, empty }) => {
-                        const sectionItems = groupedItems[key] || [];
-                        if (key === 'other' && sectionItems.length === 0) {
-                          return null;
-                        }
-
-                        return (
-                          <div key={key} className="mt-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                              <div>
-                                <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
-                                <p className="text-sm text-gray-500">{description}</p>
-                              </div>
-                              <span
-                                className={`text-xs font-medium px-3 py-1 rounded-full ${
-                                  summaryToneClasses[tone] || summaryToneClasses.default
-                                }`}
-                              >
-                                {sectionItems.length} item{sectionItems.length === 1 ? '' : 's'}
-                              </span>
+                      <>
+                        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <h3 className="text-sm font-semibold text-emerald-900">
+                                Auto-fill purchased quantities
+                              </h3>
+                              <p className="text-sm text-emerald-800">
+                                Copies each requested quantity into the purchased quantity field and marks the item as purchased.
+                              </p>
                             </div>
-                            {sectionItems.length === 0 ? (
-                              <p className="mt-3 text-sm text-gray-500 italic">{empty}</p>
-                            ) : (
-                              sectionItems.map((item, idx) => (
-                                <ProcurementItemStatusPanel
-                                  key={item.id || idx}
-                                  item={item}
-                                  onUpdate={() => fetchItems(request.id)}
-                                />
-                              ))
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleAutoPurchaseAll(request.id)}
+                              disabled={bulkUpdatingRequestId === request.id}
+                              className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white transition ${
+                                bulkUpdatingRequestId === request.id
+                                  ? 'bg-emerald-400 cursor-wait'
+                                  : 'bg-emerald-600 hover:bg-emerald-700'
+                              }`}
+                            >
+                              {bulkUpdatingRequestId === request.id
+                                ? 'Updating items…'
+                                : 'Mark all as purchased'}
+                            </button>
                           </div>
-                        );
-                      })
+                        </div>
+                        {ITEM_SECTION_CONFIG.map(({ key, title, description, tone, empty }) => {
+                          const sectionItems = groupedItems[key] || [];
+                          if (key === 'other' && sectionItems.length === 0) {
+                            return null;
+                          }
+
+                          return (
+                            <div key={key} className="mt-6">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+                                  <p className="text-sm text-gray-500">{description}</p>
+                                </div>
+                                <span
+                                  className={`text-xs font-medium px-3 py-1 rounded-full ${
+                                    summaryToneClasses[tone] || summaryToneClasses.default
+                                  }`}
+                                >
+                                  {sectionItems.length} item{sectionItems.length === 1 ? '' : 's'}
+                                </span>
+                              </div>
+                              {sectionItems.length === 0 ? (
+                                <p className="mt-3 text-sm italic text-gray-500">{empty}</p>
+                              ) : (
+                                sectionItems.map((item, idx) => (
+                                  <ProcurementItemStatusPanel
+                                    key={item.id || idx}
+                                    item={item}
+                                    onUpdate={() => fetchItems(request.id)}
+                                  />
+                                ))
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
                     )}
 
                     <div className="mt-6">
