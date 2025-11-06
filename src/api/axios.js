@@ -8,6 +8,11 @@ const envBase =
 // 🧼 Ensure there is no trailing slash so Axios handles paths predictably
 const normalizedEnvBase = envBase.replace(/\/+$/, '');
 
+// 🚦 Our frontend consistently calls endpoints like `/api/...`.
+// If the provided base already ends with `/api`, drop that segment so we don't
+// accidentally request `/api/api/...` when combining the base with the path.
+const sanitizedEnvBase = normalizedEnvBase.replace(/\/api$/i, '');
+
 const resolveBrowserBase = () => {
   if (typeof window === 'undefined') {
     return { primary: '', fallback: '' };
@@ -41,7 +46,7 @@ const resolveBrowserBase = () => {
 
 const { primary: browserPrimary } = resolveBrowserBase();
 
-const API_BASE = normalizedEnvBase || browserPrimary;
+const API_BASE = sanitizedEnvBase || browserPrimary;
 
 // ✅ Create axios instance
 const api = axios.create({
