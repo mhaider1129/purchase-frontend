@@ -8,32 +8,6 @@ const envBase =
 // 🧼 Ensure there is no trailing slash so Axios handles paths predictably
 const normalizedEnvBase = envBase.replace(/\/+$/, '');
 
-const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//;
-
-const buildBaseConfiguration = () => {
-  if (!normalizedEnvBase) {
-    return { baseURL: undefined, pathPrefix: '' };
-  }
-
-  if (ABSOLUTE_URL_REGEX.test(normalizedEnvBase)) {
-    try {
-      const parsed = new URL(normalizedEnvBase);
-      const baseURL = `${parsed.protocol}//${parsed.host}`;
-      const pathPrefix = parsed.pathname.replace(/\/+$/, '');
-      return { baseURL, pathPrefix };
-    } catch (error) {
-      console.warn('⚠️ Invalid absolute REACT_APP_API_BASE value, falling back to raw string');
-      return { baseURL: normalizedEnvBase, pathPrefix: '' };
-    }
-  }
-
-  const prefixedPath = normalizedEnvBase.startsWith('/')
-    ? normalizedEnvBase
-    : `/${normalizedEnvBase}`;
-
-  return { baseURL: undefined, pathPrefix: prefixedPath.replace(/\/+$/, '') };
-};
-
 const resolveBrowserBase = () => {
   if (typeof window === 'undefined') {
     return { primary: '', fallback: '' };
@@ -65,11 +39,9 @@ const resolveBrowserBase = () => {
   return { primary: apiURL, fallback: origin };
 };
 
-const { baseURL: envBaseURL, pathPrefix } = buildBaseConfiguration();
-
 const { primary: browserPrimary } = resolveBrowserBase();
 
-const API_BASE = envBaseURL ?? browserPrimary;
+const API_BASE = normalizedEnvBase || browserPrimary;
 
 // ✅ Create axios instance
 const api = axios.create({
@@ -83,21 +55,6 @@ const api = axios.create({
 // ✅ Attach token automatically
 api.interceptors.request.use(
   (config) => {
-    const originalUrl = config.url ?? '';
-
-    if (!ABSOLUTE_URL_REGEX.test(originalUrl) && pathPrefix) {
-      const normalizedUrl = originalUrl.startsWith('/')
-        ? originalUrl
-        : `/${originalUrl}`;
-
-      if (
-        normalizedUrl !== pathPrefix &&
-        !normalizedUrl.startsWith(`${pathPrefix}/`)
-      ) {
-        config.url = `${pathPrefix}${normalizedUrl}`;
-      }
-    }
-    
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
