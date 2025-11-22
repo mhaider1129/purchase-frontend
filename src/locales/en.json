@@ -223,6 +223,7 @@
         "requester": "Requested by {{name}}",
         "submittedAt": "Submitted on {{date}}",
         "itemsCount": "Items: {{count}}",
+        "estimatedCost": "Estimated cost: {{amount}} IQD",
         "project": "Project: {{project}}",
         "itemsHeading": "Requested items",
         "noItems": "No items were included with this submission.",
@@ -281,6 +282,12 @@
         "reject": "Reject request",
         "approveAria": "Approve maintenance request {{reference}}",
         "rejectAria": "Reject maintenance request {{reference}}"
+      },
+      "cost": {
+        "label": "Estimated Cost (IQD)",
+        "placeholder": "Add an estimated total before approving",
+        "helper": "Provide the projected total for the request. Leave blank to keep the current value.",
+        "invalid": "Enter a positive number for the estimated cost or leave it blank."
       },
       "feedback": {
         "approved": "Request {{reference}} approved successfully.",
@@ -1001,6 +1008,8 @@
         "stockItem": "Stock item",
         "stockItemSearch": "Search by name, brand, or category",
         "selectPlaceholder": "Choose a stock item",
+        "warehouse": "Warehouse",
+        "warehousePlaceholder": "Choose a warehouse",
         "available": "Available: {{count}}",
         "quantity": "Quantity received",
         "quantityPlaceholder": "Enter quantity received",
@@ -1615,6 +1624,7 @@
       "requestId": "Request ID",
       "department": "Department",
       "section": "Section",
+      "warehouse": "Warehouse",
       "submitted": "Submitted",
       "status": "Status",
       "justification": "Justification",

@@ -44,6 +44,7 @@ const ApprovalsPanel = () => {
   const [comments, setComments] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
   const [itemDecisions, setItemDecisions] = useState({});
+  const [itemQuantityDrafts, setItemQuantityDrafts] = useState({});
   const [savingItems, setSavingItems] = useState({});
   const [itemSummaries, setItemSummaries] = useState({});
   const [itemFeedback, setItemFeedback] = useState({});
@@ -58,6 +59,13 @@ const ApprovalsPanel = () => {
   const [estimatedCost, setEstimatedCost] = useState('');
   const [estimatedCostError, setEstimatedCostError] = useState('');
   const [estimatedCostDrafts, setEstimatedCostDrafts] = useState({});
+  const [showHodModal, setShowHodModal] = useState(false);
+  const [hodOptions, setHodOptions] = useState([]);
+  const [hodOptionsLoading, setHodOptionsLoading] = useState(false);
+  const [hodOptionsError, setHodOptionsError] = useState('');
+  const [selectedHodId, setSelectedHodId] = useState('');
+  const [hodModalRequestId, setHodModalRequestId] = useState(null);
+  const [hodSubmitLoading, setHodSubmitLoading] = useState(false);
 
   const formatDateTime = useCallback((value) => {
     if (!value) return '—';
@@ -112,6 +120,28 @@ const ApprovalsPanel = () => {
   useEffect(() => {
     fetchApprovals();
   }, [fetchApprovals]);
+
+  const loadHodOptions = useCallback(async () => {
+    setHodOptionsLoading(true);
+    setHodOptionsError('');
+
+    try {
+      const res = await axios.get('/api/requests/hod-approvers');
+      setHodOptions(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('❌ Failed to load HOD approvers:', err);
+      setHodOptions([]);
+      setHodOptionsError('Failed to load HOD approvers. Please try again.');
+    } finally {
+      setHodOptionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if ((user?.role || '').toUpperCase() === 'SCM') {
+      loadHodOptions();
+    }
+  }, [loadHodOptions, user?.role]);
 
   useEffect(() => {
     if (!Array.isArray(requests) || requests.length === 0) {
@@ -204,6 +234,14 @@ const ApprovalsPanel = () => {
               status: item.approval_status || 'Pending',
               comments: item.approval_comments || '',
             };
+            return acc;
+          }, {}),
+        }));
+        setItemQuantityDrafts((prev) => ({
+          ...prev,
+          [requestId]: fetchedItems.reduce((acc, item) => {
+            if (!item?.id) return acc;
+            acc[item.id] = item.quantity ?? '';
             return acc;
           }, {}),
         }));
@@ -313,22 +351,96 @@ const ApprovalsPanel = () => {
       },
     }));
   };
+
+  const handleItemQuantityChange = (requestId, itemId, quantityValue) => {
+    const currentItems = itemsMap[requestId] || [];
+    const targetItem = currentItems.find((it) => it.id === itemId);
+
+    if (targetItem && isItemLockedForUser(targetItem)) {
+      setItemFeedback((prev) => ({
+        ...prev,
+        [requestId]: {
+          type: 'warning',
+          message: 'Items rejected by a previous approver cannot be changed.',
+        },
+      }));
+      return;
+    }
+
+    setItemQuantityDrafts((prev) => ({
+      ...prev,
+      [requestId]: {
+        ...(prev[requestId] || {}),
+        [itemId]: quantityValue,
+      },
+    }));
+  };
   const saveItemDecisions = async (requestId, approvalId) => {
     const decisionsForRequest = itemDecisions[requestId] || {};
-    const payloadItems = Object.entries(decisionsForRequest)
-      .map(([itemId, decision]) => ({
-        item_id: Number(itemId),
-        status: decision?.status || 'Pending',
-        comments: decision?.comments || '',
-      }))
-      .filter((item) => !Number.isNaN(item.item_id));
+    const quantityDrafts = itemQuantityDrafts[requestId] || {};
+    const itemsForRequest = itemsMap[requestId] || [];
+
+    const payloadItems = [];
+
+    for (const item of itemsForRequest) {
+      if (!item?.id) continue;
+
+      const decision = decisionsForRequest[item.id] || {
+        status: item?.approval_status || 'Pending',
+        comments: item?.approval_comments || '',
+      };
+
+      const status = decision?.status || 'Pending';
+      const commentsValue = decision?.comments || '';
+      const rawQuantity = quantityDrafts[item.id];
+      const hasQuantityDraft = rawQuantity !== undefined && rawQuantity !== null && rawQuantity !== '';
+
+      let parsedQuantity = null;
+      if (hasQuantityDraft) {
+        parsedQuantity = Number(rawQuantity);
+        if (Number.isNaN(parsedQuantity) || parsedQuantity <= 0) {
+          setItemFeedback((prev) => ({
+            ...prev,
+            [requestId]: {
+              type: 'error',
+              message: 'Enter a valid quantity greater than zero for changed items.',
+            },
+          }));
+          return;
+        }
+
+        if (!Number.isInteger(parsedQuantity)) {
+          setItemFeedback((prev) => ({
+            ...prev,
+            [requestId]: {
+              type: 'error',
+              message: 'Quantity must be a whole number.',
+            },
+          }));
+          return;
+        }
+      }
+
+      const statusChanged =
+        status !== (item.approval_status || 'Pending') || commentsValue !== (item.approval_comments || '');
+      const quantityChanged = hasQuantityDraft && parsedQuantity !== Number(item.quantity);
+
+      if (statusChanged || quantityChanged) {
+        payloadItems.push({
+          item_id: Number(item.id),
+          status,
+          comments: commentsValue,
+          ...(hasQuantityDraft ? { quantity: parsedQuantity } : {}),
+        });
+      }
+    }
 
     if (payloadItems.length === 0) {
       setItemFeedback((prev) => ({
         ...prev,
         [requestId]: {
           type: 'warning',
-          message: 'Please record at least one item decision before saving.',
+          message: 'Record at least one item decision or quantity change before saving.',
         },
       }));
       return;
@@ -356,6 +468,9 @@ const ApprovalsPanel = () => {
             approval_comments: updated.approval_comments,
             approved_at: updated.approved_at,
             approved_by: updated.approved_by,
+            quantity: updated.quantity ?? item.quantity,
+            total_cost: updated.total_cost ?? item.total_cost,
+            unit_cost: updated.unit_cost ?? item.unit_cost,
           };
         });
 
@@ -363,6 +478,17 @@ const ApprovalsPanel = () => {
           ...prev,
           [requestId]: mergedItems,
         }));
+
+        setItemQuantityDrafts((prev) => {
+          const existing = { ...(prev[requestId] || {}) };
+          mergedItems.forEach((item) => {
+            if (item?.id) {
+              existing[item.id] = item.quantity ?? '';
+            }
+          });
+
+          return { ...prev, [requestId]: existing };
+        });
 
         setItemDecisions((prev) => {
           const existing = { ...(prev[requestId] || {}) };
@@ -382,6 +508,24 @@ const ApprovalsPanel = () => {
         ...prev,
         [requestId]: summary,
       }));
+
+      if (res.data?.updatedEstimatedCost !== undefined) {
+        setRequests((prev) =>
+          prev.map((req) =>
+            req.request_id === requestId
+              ? { ...req, estimated_cost: res.data.updatedEstimatedCost }
+              : req,
+          ),
+        );
+
+        setEstimatedCostDrafts((prev) => ({
+          ...prev,
+          [requestId]:
+            res.data.updatedEstimatedCost === null || res.data.updatedEstimatedCost === undefined
+              ? ''
+              : String(res.data.updatedEstimatedCost),
+        }));
+      }
 
       const lockedFromResponse = Array.isArray(res.data?.lockedItems)
         ? res.data.lockedItems
@@ -511,6 +655,50 @@ const ApprovalsPanel = () => {
     } catch (err) {
       console.error('❌ Reassignment failed:', err);
       alert('Failed to assign request to department requester.');
+    }
+  };
+
+  const openHodModal = (requestId) => {
+    setHodModalRequestId(requestId);
+    setSelectedHodId('');
+    setHodOptionsError('');
+    setShowHodModal(true);
+
+    if ((user?.role || '').toUpperCase() === 'SCM') {
+      loadHodOptions();
+    }
+  };
+
+  const closeHodModal = () => {
+    setShowHodModal(false);
+    setHodModalRequestId(null);
+    setSelectedHodId('');
+    setHodOptionsError('');
+  };
+
+  const submitHodForward = async () => {
+    if (!hodModalRequestId) return;
+
+    if (!selectedHodId) {
+      setHodOptionsError('Select a department HOD to continue.');
+      return;
+    }
+
+    setHodOptionsError('');
+    setHodSubmitLoading(true);
+
+    try {
+      await axios.post(`/api/requests/${hodModalRequestId}/request-hod-approval`, {
+        hod_user_id: Number(selectedHodId),
+      });
+
+      closeHodModal();
+      alert('Request forwarded to the selected HOD for approval.');
+    } catch (err) {
+      console.error('❌ Failed to forward request to HOD:', err);
+      setHodOptionsError('Failed to send the request to the selected HOD. Please try again.');
+    } finally {
+      setHodSubmitLoading(false);
     }
   };
 
@@ -1046,30 +1234,53 @@ const ApprovalsPanel = () => {
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                           {itemsMap[req.request_id].map((item) => {
-                                            const decision = itemDecisions[req.request_id]?.[item.id] || {
-                                              status: item.approval_status || 'Pending',
-                                              comments: item.approval_comments || '',
-                                            };
-                                            const normalizedStatus = typeof decision.status === 'string'
-                                              ? `${decision.status.charAt(0).toUpperCase()}${decision.status.slice(1).toLowerCase()}`
-                                              : 'Pending';
-                                            const rowHighlight = STATUS_HIGHLIGHTS[normalizedStatus] || '';
-                                            const decisionLocked = canEditItems && isItemLockedForUser(item);
+                                          const decision = itemDecisions[req.request_id]?.[item.id] || {
+                                            status: item.approval_status || 'Pending',
+                                            comments: item.approval_comments || '',
+                                          };
+                                          const normalizedStatus = typeof decision.status === 'string'
+                                            ? `${decision.status.charAt(0).toUpperCase()}${decision.status.slice(1).toLowerCase()}`
+                                            : 'Pending';
+                                          const rowHighlight = STATUS_HIGHLIGHTS[normalizedStatus] || '';
+                                          const decisionLocked = canEditItems && isItemLockedForUser(item);
+                                          const quantityDraftsForRequest = itemQuantityDrafts[req.request_id] || {};
+                                          const quantityValue =
+                                            quantityDraftsForRequest[item.id] ?? item.quantity ?? '';
 
-                                            return (
-                                              <tr key={item.id || item.item_name} className={`${rowHighlight} transition-colors`}>
-                                                <td className="px-3 py-3 text-slate-800">
-                                                  <div className="font-medium">{item.item_name}</div>
+                                          return (
+                                            <tr key={item.id || item.item_name} className={`${rowHighlight} transition-colors`}>
+                                              <td className="px-3 py-3 text-slate-800">
+                                                <div className="font-medium">{item.item_name}</div>
                                                   {(item.brand || item.specs) && (
                                                     <div className="mt-1 text-xs text-slate-500">
                                                       {item.brand && <span className="mr-2">{item.brand}</span>}
                                                       {item.specs && <span>{item.specs}</span>}
                                                     </div>
                                                   )}
-                                                </td>
+                                              </td>
                                                 <td className="px-3 py-3 text-slate-600">{item.brand || '—'}</td>
                                                 <td className="px-3 py-3 text-slate-600">{item.specs || '—'}</td>
-                                                <td className="px-3 py-3 text-slate-600">{item.quantity}</td>
+                                                <td className="px-3 py-3 text-slate-600">
+                                                  {canEditItems ? (
+                                                    <input
+                                                      type="number"
+                                                      min={1}
+                                                      step={1}
+                                                      value={quantityValue}
+                                                      onChange={(event) =>
+                                                        handleItemQuantityChange(
+                                                          req.request_id,
+                                                          item.id,
+                                                          event.target.value,
+                                                        )
+                                                      }
+                                                      className="w-24 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                      disabled={decisionLocked}
+                                                    />
+                                                  ) : (
+                                                    <span>{item.quantity ?? '—'}</span>
+                                                  )}
+                                                </td>
                                                 <td className="px-3 py-3 text-slate-600">{item.available_quantity ?? '—'}</td>
                                                 <td className="px-3 py-3 text-slate-600">{item.unit_cost}</td>
                                                 <td className="px-3 py-3 text-slate-600">{item.total_cost}</td>
@@ -1146,17 +1357,25 @@ const ApprovalsPanel = () => {
                             </div>
 
                             <div className="space-y-4">
-                              {isUrgentRequest && (
-                                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-                                  Requires immediate attention
-                                </div>
+                            {isUrgentRequest && (
+                              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
+                                Requires immediate attention
+                              </div>
+                            )}
+                            <div className="space-y-3">
+                              {user?.role === 'SCM' && (
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => openHodModal(req.request_id)}
+                                >
+                                  Send to Department HOD
+                                </Button>
                               )}
-                              <div className="space-y-3">
-                                {req.request_type === 'Maintenance' && req.approval_level === 1 ? (
-                                  <Button onClick={() => reassignToDepartmentRequester(req.request_id, req.approval_id)}>
-                                    Assign to Department Requester
-                                  </Button>
-                                ) : (
+                              {req.request_type === 'Maintenance' && req.approval_level === 1 ? (
+                                <Button onClick={() => reassignToDepartmentRequester(req.request_id, req.approval_id)}>
+                                  Assign to Department Requester
+                                </Button>
+                              ) : (
                                   <>
                                     <Button onClick={() => openCommentModal(req.approval_id, req.request_id, 'Approved')}>
                                       Approve
@@ -1179,8 +1398,71 @@ const ApprovalsPanel = () => {
                 })}
             </div>
           )}
-        </div>
       </div>
+    </div>
+
+      {showHodModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold">Send to Department HOD</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Add a department HOD approval step before continuing the workflow.
+            </p>
+
+            {hodOptionsLoading ? (
+              <div className="mt-4 flex items-center gap-2 text-slate-600">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading HOD approvers...</span>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-2">
+                <label htmlFor="hod-select" className="text-sm font-medium text-slate-700">
+                  Select department HOD
+                </label>
+                <select
+                  id="hod-select"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedHodId}
+                  onChange={(e) => {
+                    setSelectedHodId(e.target.value);
+                    setHodOptionsError('');
+                  }}
+                >
+                  <option value="">Choose a HOD</option>
+                  {hodOptions.map((hod) => (
+                    <option key={hod.id} value={hod.id}>
+                      {hod.name || 'HOD'} {hod.department_name ? `— ${hod.department_name}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {!hodOptionsLoading && hodOptions.length === 0 && (
+                  <p className="text-sm text-slate-500">No active HOD approvers are available.</p>
+                )}
+                {hodOptionsError && (
+                  <p className="text-sm text-red-600">{hodOptionsError}</p>
+                )}
+              </div>
+            )}
+
+            <p className="mt-3 text-xs text-slate-500">
+              The selected HOD will receive a pending approval before the request continues to the next level.
+            </p>
+
+            <div className="mt-4 flex justify-end gap-3">
+              <Button
+                onClick={submitHodForward}
+                isLoading={hodSubmitLoading}
+                disabled={hodSubmitLoading || hodOptionsLoading}
+              >
+                Send
+              </Button>
+              <Button variant="ghost" onClick={closeHodModal} disabled={hodSubmitLoading}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCommentBox && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">

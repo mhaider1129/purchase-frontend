@@ -4,12 +4,14 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { hasPermission, hasAnyPermission } from '../utils/permissions';
+import useWarehouses from '../hooks/useWarehouses';
 
 const initialUserEditState = {
   role: '',
   department_id: '',
   section_id: '',
   can_request_medication: false,
+  warehouse_id: '',
 };
 
 const initialNewDepartment = { name: '', type: 'operational' };
@@ -30,6 +32,12 @@ const Management = () => {
   const [routes, setRoutes] = useState([]);
   const [accountRequests, setAccountRequests] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [warehouseForm, setWarehouseForm] = useState({ name: '' });
+  const [warehouseMessage, setWarehouseMessage] = useState('');
+  const [warehouseError, setWarehouseError] = useState('');
+  const [savingWarehouse, setSavingWarehouse] = useState(false);
+  const [editingWarehouseId, setEditingWarehouseId] = useState(null);
+  const [editingWarehouseName, setEditingWarehouseName] = useState('');
 
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
@@ -68,6 +76,13 @@ const Management = () => {
 
   const { user } = useAuth();
   const {
+    warehouses,
+    warehouseMap,
+    loading: warehousesLoading,
+    error: warehousesError,
+    refresh: refreshWarehouses,
+  } = useWarehouses();
+  const {
     resources: uiResources,
     loading: uiAccessLoading,
     error: uiAccessLoadError,
@@ -102,6 +117,7 @@ const Management = () => {
     if (canViewUsers) tabs.push('users');
     if (canManageAccountRequests) tabs.push('accountRequests');
     if (canManageDepartments) tabs.push('departments');
+    if (canManageDepartments) tabs.push('warehouses');
     if (canManageRoutes) tabs.push('routes');
     if (canManageProjects) tabs.push('projects');
     if (canManagePermissions) {
@@ -140,7 +156,7 @@ const Management = () => {
     if (canViewUsers || canManagePermissions) {
       fetchUsers();
     }
-    if (canManageDepartments) {
+    if (canManageDepartments || canViewUsers || canManagePermissions) {
       fetchDepartments();
     }
     if (canManageRoutes) {
@@ -164,11 +180,16 @@ const Management = () => {
   useEffect(() => {
     if (tab === 'users' && canViewUsers) {
       fetchUsers();
+      fetchDepartments();
       if (!roles.length) {
         fetchRoles();
       }
     }
     if (tab === 'departments' && canManageDepartments) {
+      fetchDepartments();
+    }
+    if (tab === 'warehouses' && canManageDepartments) {
+      refreshWarehouses();
       fetchDepartments();
     }
     if (tab === 'routes' && canManageRoutes) {
@@ -258,7 +279,7 @@ const Management = () => {
   };
 
   const fetchDepartments = async () => {
-    if (!canManageDepartments) return;
+    if (!(canManageDepartments || canViewUsers || canManagePermissions)) return;
     setLoadingDepartments(true);
     setDepartmentsError('');
     try {
@@ -494,6 +515,7 @@ const Management = () => {
       department_id: user.department_id ? String(user.department_id) : '',
       section_id: user.section_id ? String(user.section_id) : '',
       can_request_medication: Boolean(user.can_request_medication),
+      warehouse_id: user.warehouse_id ? String(user.warehouse_id) : '',
     });
   };
 
@@ -508,6 +530,7 @@ const Management = () => {
         role: editData.role,
         department_id: editData.department_id ? Number(editData.department_id) : null,
         section_id: editData.section_id ? Number(editData.section_id) : null,
+        warehouse_id: editData.warehouse_id ? Number(editData.warehouse_id) : null,
         can_request_medication: editData.can_request_medication,
       });
       setEditUserId(null);
@@ -621,6 +644,71 @@ const Management = () => {
     } catch (err) {
       console.error('Failed to add section', err);
       alert('Unable to add section.');
+    }
+  };
+
+  const startEditingWarehouse = (warehouse) => {
+    setEditingWarehouseId(warehouse.id);
+    setEditingWarehouseName(warehouse.name || '');
+    setWarehouseMessage('');
+    setWarehouseError('');
+  };
+
+  const cancelWarehouseEdit = () => {
+    setEditingWarehouseId(null);
+    setEditingWarehouseName('');
+  };
+
+  const addWarehouse = async () => {
+    const trimmed = warehouseForm.name.trim();
+    if (!trimmed) {
+      setWarehouseError('Warehouse name is required.');
+      return;
+    }
+    if (!window.confirm('Add this warehouse?')) return;
+
+    setSavingWarehouse(true);
+    setWarehouseError('');
+    setWarehouseMessage('');
+
+    try {
+      await api.post('/api/departments', { name: trimmed, type: 'warehouse' });
+      setWarehouseForm({ name: '' });
+      setWarehouseMessage('Warehouse added successfully.');
+      await Promise.all([refreshWarehouses(), fetchDepartments()]);
+    } catch (err) {
+      console.error('Failed to add warehouse', err);
+      setWarehouseError(err?.response?.data?.message || 'Unable to add warehouse.');
+    } finally {
+      setSavingWarehouse(false);
+    }
+  };
+
+  const saveWarehouseEdit = async () => {
+    if (!editingWarehouseId) return;
+    const trimmed = editingWarehouseName.trim();
+    if (!trimmed) {
+      setWarehouseError('Warehouse name cannot be empty.');
+      return;
+    }
+
+    setSavingWarehouse(true);
+    setWarehouseError('');
+    setWarehouseMessage('');
+
+    try {
+      await api.put(`/api/departments/${editingWarehouseId}`, {
+        name: trimmed,
+        type: 'warehouse',
+      });
+      setWarehouseMessage('Warehouse updated successfully.');
+      cancelWarehouseEdit();
+      await Promise.all([refreshWarehouses(), fetchDepartments()]);
+    } catch (err) {
+      console.error('Failed to update warehouse', err);
+      setWarehouseError(err?.response?.data?.message || 'Unable to update warehouse.');
+    } finally {
+      setSavingWarehouse(false);
     }
   };
 
@@ -815,6 +903,7 @@ const Management = () => {
               <th className="p-2">Role</th>
               <th className="p-2">Department</th>
               <th className="p-2">Section</th>
+              <th className="p-2">Warehouse</th>
               <th className="p-2">Medication?</th>
               <th className="p-2">Active</th>
               <th className="p-2">Actions</th>
@@ -827,6 +916,9 @@ const Management = () => {
                 : null;
               const section = user.section_id
                 ? sectionOptions.get(user.section_id)
+                : null;
+              const warehouse = user.warehouse_id
+                ? warehouseMap.get(user.warehouse_id)
                 : null;
               return (
                 <tr key={user.id} className="border-b">
@@ -899,6 +991,31 @@ const Management = () => {
                       )
                     ) : section ? (
                       section
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="p-2">
+                    {editUserId === user.id ? (
+                      <select
+                        className="border p-1"
+                        value={editData.warehouse_id}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            warehouse_id: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">--Warehouse--</option>
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            {wh.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : warehouse ? (
+                      warehouse.name
                     ) : (
                       '—'
                     )}
@@ -1192,6 +1309,114 @@ const Management = () => {
         </>
       )}
     </div>
+    );
+  };
+
+  const renderWarehouses = () => {
+    if (!canManageDepartments) {
+      return (
+        <div className="rounded border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          You do not have permission to manage warehouses.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {warehouseError && (
+          <p className="text-sm text-red-600">{warehouseError}</p>
+        )}
+        {warehouseMessage && (
+          <p className="text-sm text-green-700">{warehouseMessage}</p>
+        )}
+        {warehousesError && (
+          <p className="text-sm text-red-600">{warehousesError}</p>
+        )}
+        <div className="overflow-x-auto">
+          {warehousesLoading ? (
+            <p>Loading warehouses...</p>
+          ) : warehouses.length === 0 ? (
+            <p>No warehouses found.</p>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gray-200 text-left">
+                  <th className="p-2">Name</th>
+                  <th className="p-2">Type</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {warehouses.map((warehouse) => (
+                  <tr key={warehouse.id} className="border-b">
+                    <td className="p-2 font-medium">
+                      {editingWarehouseId === warehouse.id ? (
+                        <input
+                          className="w-full rounded border px-2 py-1"
+                          value={editingWarehouseName}
+                          onChange={(e) => setEditingWarehouseName(e.target.value)}
+                          disabled={savingWarehouse}
+                        />
+                      ) : (
+                        warehouse.name
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs uppercase tracking-wide text-amber-700">
+                        {warehouse.type || 'warehouse'}
+                      </span>
+                    </td>
+                    <td className="p-2">
+                      {editingWarehouseId === warehouse.id ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={saveWarehouseEdit}
+                            disabled={savingWarehouse}
+                            className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700 disabled:bg-gray-400"
+                          >
+                            {savingWarehouse ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={cancelWarehouseEdit}
+                            className="rounded border border-gray-300 px-3 py-1 hover:bg-gray-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditingWarehouse(warehouse)}
+                          className="rounded border border-blue-200 px-3 py-1 text-blue-700 hover:bg-blue-50"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="space-y-2 rounded border bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-semibold uppercase text-gray-600">Add Warehouse</h3>
+          <input
+            className="w-full rounded border px-3 py-2"
+            placeholder="Warehouse name"
+            value={warehouseForm.name}
+            onChange={(e) => setWarehouseForm({ name: e.target.value })}
+            disabled={savingWarehouse}
+          />
+          <button
+            onClick={addWarehouse}
+            disabled={savingWarehouse}
+            className="w-full rounded bg-blue-600 px-3 py-2 text-white hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            {savingWarehouse ? 'Saving…' : 'Add warehouse'}
+          </button>
+        </div>
+      </div>
     );
   };
 
@@ -1925,6 +2150,13 @@ const Management = () => {
           </div>
           <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+              Warehouses
+            </p>
+            <p className="mt-2 text-2xl font-bold text-amber-900">{warehouses.length}</p>
+            <p className="text-xs text-amber-700">Available locations</p>
+          </div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
               Active projects
             </p>
             <p className="mt-2 text-2xl font-bold text-amber-900">{activeProjectCount}</p>
@@ -1960,6 +2192,16 @@ const Management = () => {
               }`}
             >
               Departments
+            </button>
+          )}
+          {canManageDepartments && (
+            <button
+              onClick={() => setTab('warehouses')}
+              className={`px-3 py-1 rounded ${
+                tab === 'warehouses' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+              }`}
+            >
+              Warehouses
             </button>
           )}
           {canManageRoutes && (
@@ -2007,6 +2249,7 @@ const Management = () => {
         {tab === 'users' && renderUsers()}
         {tab === 'accountRequests' && renderAccountRequests()}
         {tab === 'departments' && renderDepartments()}
+        {tab === 'warehouses' && renderWarehouses()}
         {tab === 'routes' && renderRoutes()}
         {tab === 'projects' && renderProjects()}
         {tab === 'permissions' && renderPermissions()}
