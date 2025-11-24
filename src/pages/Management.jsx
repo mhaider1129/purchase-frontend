@@ -149,6 +149,14 @@ const Management = () => {
   const [accessConfigSuccess, setAccessConfigSuccess] = useState('');
   const [savingAccessConfig, setSavingAccessConfig] = useState(false);
 
+  const warehouseRoles = useMemo(
+    () => new Set(['warehousemanager', 'warehouse_manager', 'warehousekeeper', 'warehouse_keeper']),
+    [],
+  );
+
+  const requiresWarehouseAssignment = (roleName) =>
+    warehouseRoles.has(String(roleName || '').toLowerCase());
+
   useEffect(() => {
     if (canViewUsers || canManageRoutes || canManagePermissions) {
       fetchRoles();
@@ -525,6 +533,11 @@ const Management = () => {
   };
 
   const saveEdit = async (id) => {
+    const needsWarehouse = requiresWarehouseAssignment(editData.role);
+    if (needsWarehouse && !editData.warehouse_id) {
+      alert('Select the warehouse this user manages before saving.');
+      return;
+    }
     try {
       await api.patch(`/api/users/${id}/assign`, {
         role: editData.role,
@@ -672,7 +685,7 @@ const Management = () => {
     setWarehouseMessage('');
 
     try {
-      await api.post('/api/departments', { name: trimmed, type: 'warehouse' });
+      await api.post('/api/warehouses', { name: trimmed });
       setWarehouseForm({ name: '' });
       setWarehouseMessage('Warehouse added successfully.');
       await Promise.all([refreshWarehouses(), fetchDepartments()]);
@@ -697,9 +710,8 @@ const Management = () => {
     setWarehouseMessage('');
 
     try {
-      await api.put(`/api/departments/${editingWarehouseId}`, {
+      await api.put(`/api/warehouses/${editingWarehouseId}`, {
         name: trimmed,
-        type: 'warehouse',
       });
       setWarehouseMessage('Warehouse updated successfully.');
       cancelWarehouseEdit();
@@ -920,6 +932,7 @@ const Management = () => {
               const warehouse = user.warehouse_id
                 ? warehouseMap.get(user.warehouse_id)
                 : null;
+              const warehouseName = warehouse?.name || user.warehouse_name;
               return (
                 <tr key={user.id} className="border-b">
                   <td className="p-2">{user.name}</td>
@@ -1014,8 +1027,8 @@ const Management = () => {
                           </option>
                         ))}
                       </select>
-                    ) : warehouse ? (
-                      warehouse.name
+                    ) : warehouseName ? (
+                      warehouseName
                     ) : (
                       '—'
                     )}
