@@ -146,6 +146,7 @@
     "lifecycleAnalytics": "Lifecycle Analytics",
     "auditRequests": "Audit Requests",
     "procurementPlans": "Procurement Plans",
+    "suppliers": "Suppliers",
     "contracts": "Contracts",
     "supplierEvaluations": "Supplier Evaluations",
     "viewIncomplete": "View Incomplete Requests",
@@ -312,6 +313,59 @@
       "loadFailed": "Failed to load pending maintenance requests."
     },
     "emptyState": "No maintenance approvals match the current filters."
+  },
+  "suppliersPage": {
+    "title": "Suppliers",
+    "subtitle": "Manage supplier records, contacts, and readiness for procurement.",
+    "refresh": "Refresh",
+    "loading": "Loading suppliers…",
+    "error": "Failed to load suppliers. Please try again.",
+    "retry": "Retry",
+    "empty": "No suppliers found.",
+    "search": {
+      "label": "Search suppliers",
+      "placeholder": "Search by supplier name, email, or phone"
+    },
+    "stats": {
+      "total": "Total suppliers",
+      "withEmail": "With email",
+      "withPhone": "With phone",
+      "needsContacts": "Missing contact info"
+    },
+    "form": {
+      "title": "Supplier management",
+      "description": "Add a new supplier record or capture missing contact details.",
+      "editing": "Editing an existing supplier. Update their details and save your changes.",
+      "name": "Supplier name",
+      "namePlaceholder": "e.g. Gulf Trading Partners",
+      "email": "Contact email",
+      "emailPlaceholder": "contact@supplier.com",
+      "phone": "Contact phone",
+      "phonePlaceholder": "+966 555 123 456",
+      "create": "Create supplier",
+      "update": "Update supplier",
+      "reset": "Reset form",
+      "created": "Supplier was created successfully.",
+      "updated": "Supplier details were updated.",
+      "deleted": "{{name}} was removed.",
+      "deleteError": "Unable to delete the supplier. Remove any linked records first.",
+      "genericError": "Unable to save the supplier right now. Please try again.",
+      "validation": {
+        "name": "Supplier name is required."
+      }
+    },
+    "table": {
+      "name": "Supplier",
+      "email": "Email",
+      "phone": "Phone",
+      "createdAt": "Added",
+      "actions": "Actions"
+    },
+    "actions": {
+      "manage": "Manage",
+      "delete": "Delete",
+      "confirmDelete": "Delete {{name}}? This cannot be undone."
+    }
   },
   "language": {
     "english": "English",
@@ -997,7 +1051,11 @@
       "validationFailed": "Select a stock item and enter a positive quantity to continue.",
       "submitSuccess": "Stock quantity added to the warehouse inventory.",
       "submitFailed": "Failed to add stock to the warehouse. Please try again.",
-      "reportFailed": "Could not load the weekly departmental stocking report."
+      "reportFailed": "Could not load the weekly departmental stocking report.",
+      "loadDepartmentsFailed": "Could not load departments. Please refresh and try again.",
+      "issueValidationFailed": "Select a warehouse, department, stock item, and enter a positive quantity to continue.",
+      "issueSubmitSuccess": "Stock issued to department.",
+      "issueSubmitFailed": "Failed to issue stock to the department. Please try again."
     },
     "form": {
       "title": "Add stock to warehouse",
@@ -1016,6 +1074,24 @@
         "quantityPlaceholder": "Enter quantity received",
         "notes": "Notes (optional)",
         "notesPlaceholder": "Reference, batch, or delivery details"
+      }
+    },
+    "issueForm": {
+      "title": "Issue stock to department",
+      "description": "Record outbound quantities from the warehouse to requesting departments.",
+      "saving": "Issuing...",
+      "submit": "Issue stock",
+      "submitLoading": "Issuing...",
+      "fields": {
+        "stockItem": "Stock item",
+        "stockItemSearch": "Search by name, brand, or category",
+        "selectPlaceholder": "Choose a stock item",
+        "department": "Department",
+        "departmentPlaceholder": "Choose a department",
+        "quantity": "Quantity issued",
+        "quantityPlaceholder": "Enter quantity issued",
+        "notes": "Notes (optional)",
+        "notesPlaceholder": "Reference, ticket, or requester details"
       }
     },
     "report": {
@@ -1308,6 +1384,7 @@
     "statuses": {
       "completed": "Completed",
       "rejected": "Rejected",
+      "technical_inspection_pending": "Technical Inspection Pending",
       "approved": "Approved",
       "pending": "Pending",
       "in_progress": "In Progress",
@@ -1340,6 +1417,8 @@
       "approvals": "Approvals"
     },
     "notAvailable": "Not available",
+    "inspectionPendingNotice": "Procurement finalized this request. Technical inspection must be completed before you can mark items as received.",
+    "startTechnicalInspection": "Open Technical Inspection",
     "errorLoading": "Failed to load closed requests.",
     "loading": "Loading closed requests...",
     "emptyState": "No closed requests match your filters.",
@@ -1349,6 +1428,10 @@
     "title": "Assigned Requests",
     "loading": "Loading assigned requests...",
     "empty": "No requests assigned to you.",
+    "actions": {
+      "refresh": "Refresh",
+      "refreshing": "Refreshing..."
+    },
     "confirm": {
       "markComplete": "Are you sure you want to mark this request as completed?",
       "bulkPurchase": "This will copy the requested quantity into the purchased quantity and mark every item as purchased. Continue?"

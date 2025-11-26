@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import { printRequest } from '../api/requests';
 import ApprovalTimeline from '../components/ApprovalTimeline';
 import useApprovalTimeline from '../hooks/useApprovalTimeline';
+import { getRequesterDisplay } from '../utils/requester';
 import Card from '../components/Card';
 import RequestAttachmentsSection from '../components/RequestAttachmentsSection';
 import useRequestAttachments from '../hooks/useRequestAttachments';
@@ -98,10 +99,11 @@ const STEP_LABELS = {
   ProcurementSpecialist: 'Procurement Specialist Action',
 };
 
-// Helper to derive a readable current step string for a request
 const getCurrentStep = (req) => {
   if (req.status === 'Rejected') return 'Rejected';
   if (req.status?.toLowerCase() === 'completed') return 'Completed';
+  if (req.status?.toLowerCase() === 'technical_inspection_pending')
+    return 'Technical Inspection Pending';
   if (req.status?.toLowerCase() === 'received') return 'Received';
   if (req.status === 'Approved' && !req.current_approver_role) return 'Approved';
   if (req.current_approver_role) {
@@ -115,6 +117,8 @@ const getStepColor = (step) => {
   switch (step) {
     case 'Rejected':
       return 'bg-red-100 text-red-800';
+    case 'Technical Inspection Pending':
+      return 'bg-amber-100 text-amber-800';
     case 'Completed':
     case 'Approved':
     case 'Received':
@@ -858,6 +862,7 @@ const AllRequestsPage = () => {
             const cardClasses = isUrgent
               ? 'border-red-300 ring-1 ring-red-200/70 bg-red-50/70'
               : '';
+            const requesterDisplay = getRequesterDisplay(request);
             return (
               <Card key={request.id} className={`transition ${cardClasses}`}>
                 <div className="flex justify-between items-start gap-4 flex-wrap">
@@ -881,12 +886,9 @@ const AllRequestsPage = () => {
                     <p>
                       <strong>Section:</strong> {request.section_name || '—'}
                     </p>
-                    {request.requester_name && (
-                      <p>
-                        <strong>Requester:</strong> {request.requester_name}
-                        {request.requester_role && ` (${request.requester_role})`}
-                      </p>
-                    )}
+                  <p>
+                    <strong>Requester:</strong> {requesterDisplay}
+                  </p>
                     <p><strong>Justification:</strong> {request.justification}</p>
                     <p>
                       <strong>Assigned To:</strong>{' '}
