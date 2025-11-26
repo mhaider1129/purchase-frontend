@@ -9,7 +9,8 @@ import useApprovalTimeline from '../hooks/useApprovalTimeline';
 import RequestAttachmentsSection from '../components/RequestAttachmentsSection';
 import useRequestAttachments from '../hooks/useRequestAttachments';
 import useCurrentUser from '../hooks/useCurrentUser';
-const ITEMS_PER_PAGE = 10;
+import { useNavigate } from 'react-router-dom';
+const ITEMS_PER_PAGE = 20;
 
 const formatDate = (value, locale) => {
   if (!value) {
@@ -32,8 +33,11 @@ const mapStatusColor = (status) => {
       return 'bg-green-100 text-green-700 ring-green-200';
     case 'rejected':
       return 'bg-red-100 text-red-700 ring-red-200';
+    case 'received':
     case 'Received':
       return 'bg-blue-100 text-blue-700 ring-blue-200';
+    case 'technical_inspection_pending':
+      return 'bg-amber-100 text-amber-800 ring-amber-200';
     default:
       return 'bg-gray-100 text-gray-700 ring-gray-200';
   }
@@ -45,6 +49,7 @@ const ClosedRequestsPage = () => {
     () => (key, options) => translate(`closedRequests.${key}`, options),
     [translate]
   );
+  const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
   const [search, setSearch] = useState('');
@@ -116,6 +121,18 @@ const ClosedRequestsPage = () => {
     } finally {
       setMarkingItemReceived(null);
     }
+  };
+
+  const handleStartTechnicalInspection = (requestId, item) => {
+    navigate('/technical-inspections', {
+      state: {
+        prefillInspection: {
+          requestId,
+          itemId: item?.id,
+          itemName: item?.item_name,
+        },
+      },
+    });
   };
 
   const toggleItems = (requestId) => {
@@ -502,6 +519,8 @@ const ClosedRequestsPage = () => {
                       expandedAttachmentsId === req.id
                         ? tr('hideAttachments', { defaultValue: 'Hide Attachments' })
                         : tr('viewAttachments', { defaultValue: 'View Attachments' });
+                    const isTechnicalInspectionPending =
+                      normalizedStatus === 'technical_inspection_pending';
 
                     return (
                       <React.Fragment key={req.id}>
@@ -566,7 +585,16 @@ const ClosedRequestsPage = () => {
                             </button>
                           </td>
                           <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                            <span className="text-gray-400 dark:text-gray-600">—</span>
+                            {isTechnicalInspectionPending ? (
+                              <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-700/60">
+                                {tr('inspectionPendingNotice', {
+                                  defaultValue:
+                                    'Awaiting technical inspection before items can be marked as received.',
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 dark:text-gray-600">—</span>
+                            )}
                           </td>
                         </tr>
                         {expandedItemsId === req.id && (
@@ -647,6 +675,16 @@ const ClosedRequestsPage = () => {
                                                       ? tr('markingItem', { defaultValue: 'Marking…' })
                                                       : tr('markItemReceived', { defaultValue: 'Mark as Received' })}
                                                   </button>
+                                                ) : isTechnicalInspectionPending ? (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleStartTechnicalInspection(req.id, item)}
+                                                    className="inline-flex items-center gap-2 rounded-md border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                                                  >
+                                                    {tr('startTechnicalInspection', {
+                                                      defaultValue: 'Open Technical Inspection',
+                                                    })}
+                                                  </button>
                                                 ) : (
                                                   <span className="text-sm text-gray-500 dark:text-gray-300">—</span>
                                                 )}
@@ -720,6 +758,8 @@ const ClosedRequestsPage = () => {
                   expandedAttachmentsId === req.id
                     ? tr('hideAttachments', { defaultValue: 'Hide Attachments' })
                     : tr('viewAttachments', { defaultValue: 'View Attachments' });
+                const isTechnicalInspectionPending =
+                  normalizedStatus === 'technical_inspection_pending';
 
                 return (
                   <article
@@ -768,6 +808,15 @@ const ClosedRequestsPage = () => {
                       <div className="mt-4 rounded-md bg-gray-50 p-3 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200">
                         <p className="font-medium">{tr('table.justification')}</p>
                         <p className="mt-1 whitespace-pre-line">{req.justification}</p>
+                      </div>
+                    )}
+
+                    {isTechnicalInspectionPending && (
+                      <div className="mt-3 rounded-md bg-amber-50 p-3 text-xs font-medium text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-700/60">
+                        {tr('inspectionPendingNotice', {
+                          defaultValue:
+                            'Awaiting technical inspection before items can be marked as received.',
+                        })}
                       </div>
                     )}
 
@@ -863,6 +912,20 @@ const ClosedRequestsPage = () => {
                                         {markingItemReceived === trackingKey
                                           ? tr('markingItem', { defaultValue: 'Marking…' })
                                           : tr('markItemReceived', { defaultValue: 'Mark as Received' })}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {!canMarkItem && isTechnicalInspectionPending && (
+                                    <div className="mt-3 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartTechnicalInspection(req.id, item)}
+                                        className="inline-flex items-center gap-2 rounded-md border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                                      >
+                                        {tr('startTechnicalInspection', {
+                                          defaultValue: 'Open Technical Inspection',
+                                        })}
                                       </button>
                                     </div>
                                   )}

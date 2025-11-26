@@ -1,4 +1,4 @@
-// src/pages/MaintenanceHODApprovals.jsx
+// src/components/approvals/ApprovalsWorkspace.jsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { saveAs } from 'file-saver';
@@ -15,12 +15,12 @@ import {
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
-import axios from '../api/axios';
-import Navbar from '../components/Navbar';
-import ApprovalTimeline from '../components/ApprovalTimeline';
-import { Button } from '../components/ui/Button';
-import useApprovalTimeline from '../hooks/useApprovalTimeline';
-import useCurrentUser from '../hooks/useCurrentUser';
+import axios from '../../api/axios';
+import Navbar from '../Navbar';
+import ApprovalTimeline from '../ApprovalTimeline';
+import { Button } from '../ui/Button';
+import useApprovalTimeline from '../../hooks/useApprovalTimeline';
+import useCurrentUser from '../../hooks/useCurrentUser';
 
 const ITEMS_PER_PAGE = 8;
 const ITEM_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected'];
@@ -38,7 +38,7 @@ const ITEM_ROW_HIGHLIGHTS = {
   Pending: '',
 };
 
-const MaintenanceHODApprovals = () => {
+const ApprovalsWorkspace = ({ requestType = 'maintenance' }) => {
   const { t, i18n } = useTranslation();
 
   const [requests, setRequests] = useState([]);
@@ -123,7 +123,10 @@ const MaintenanceHODApprovals = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get('/api/requests/pending-maintenance-approvals');
+      const endpoint = requestType
+        ? `/api/requests/pending-${requestType}-approvals`
+        : '/api/requests/pending-maintenance-approvals';
+      const res = await axios.get(endpoint);
       const payload = Array.isArray(res.data) ? res.data : [];
       const normalized = payload.map((req) => ({
         ...req,
@@ -177,7 +180,7 @@ const MaintenanceHODApprovals = () => {
     } finally {
       setLoading(false);
     }
-  }, [buildSummaryFromItems, resetApprovals, t]);
+  }, [buildSummaryFromItems, resetApprovals, requestType, t]);
 
   useEffect(() => {
     fetchRequests();
@@ -1377,4 +1380,4 @@ const MaintenanceHODApprovals = () => {
   );
 };
 
-export default MaintenanceHODApprovals;
+export default ApprovalsWorkspace;

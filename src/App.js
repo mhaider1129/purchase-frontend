@@ -31,7 +31,6 @@ import ItemRecallsPage from "./pages/ItemRecallsPage";
 import ApprovalsPanel from "./pages/ApprovalsPanel";
 import OpenRequestsPage from "./pages/OpenRequestsPage";
 import MyMaintenanceRequests from "./pages/MyMaintenanceRequests";
-import MaintenanceHODApprovals from "./pages/MaintenanceHODApprovals";
 import ApprovalHistory from "./pages/ApprovalHistory";
 
 import AllRequestsPage from "./pages/AllRequestsPage";
@@ -58,6 +57,7 @@ import EvaluationDetailsPage from "./pages/EvaluationDetailsPage";
 import StockItemApprovals from "./pages/StockItemApprovals";
 import WarehouseInventoryPage from "./pages/WarehouseInventoryPage";
 import TechnicalInspectionsPage from "./pages/TechnicalInspectionsPage";
+import SuppliersPage from "./pages/SuppliersPage";
 
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import {
@@ -320,19 +320,7 @@ const AppRoutes = () => (
     <Route
       path="/approvals/maintenance"
       element={
-        <ProtectedRoute
-          element={<MaintenanceHODApprovals />}
-          allowedRoles={[
-            "HOD",
-            "requester",
-            "Requester",
-            "Warehouse_Keeper",
-            "WarehouseManager",
-            "CMO",
-            "COO",
-            "SCM",
-          ]}
-        />
+        <ProtectedRoute element={<Navigate to="/approvals" replace />} />
       }
     />
 
@@ -471,6 +459,25 @@ const AppRoutes = () => (
           ]}
           requiredPermissions={["contracts.manage"]}
           resourceKey="feature.contracts"
+        />
+      }
+    />
+    <Route
+      path="/suppliers"
+      element={
+        <ProtectedRoute
+          element={<SuppliersPage />}
+          allowedRoles={[
+            "SCM",
+            "admin",
+            "COO",
+            "Medical Devices",
+            "Contract_Manager",
+            "ProcurementSpecialist",
+            "ProcurementManager",
+          ]}
+          requiredPermissions={["contracts.manage"]}
+          resourceKey="feature.suppliers"
         />
       }
     />
