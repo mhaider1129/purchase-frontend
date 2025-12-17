@@ -220,6 +220,10 @@ const Navbar = () => {
     const canViewSuppliers = hasAccess(currentUser, "feature.suppliers", [
       "contracts.manage",
     ]);
+    const canAccessRfxPortal = hasAccess(currentUser, "feature.rfxPortal", [
+      "rfx.manage",
+      "rfx.respond",
+    ]);
     const canManageEvaluations = hasAccess(
       currentUser,
       "feature.supplierEvaluations",
@@ -404,6 +408,12 @@ const Navbar = () => {
             "text-emerald-700",
           ),
           createItem(
+            canAccessRfxPortal,
+            t("navbar.rfxPortal"),
+            "/rfx-portal",
+            "text-emerald-700",
+          ),
+          createItem(
             canViewSuppliers,
             t("navbar.supplierSrm"),
             "/supplier-srm",
@@ -413,6 +423,12 @@ const Navbar = () => {
             canManageEvaluations,
             t("navbar.supplierEvaluations"),
             "/supplier-evaluations",
+            "text-emerald-700",
+          ),
+          createItem(
+            canManageEvaluations,
+            t("navbar.supplierDashboard"),
+            "/supplier-dashboard",
             "text-emerald-700",
           ),
           createItem(

@@ -59,8 +59,10 @@ import WarehouseInventoryPage from "./pages/WarehouseInventoryPage";
 import TechnicalInspectionsPage from "./pages/TechnicalInspectionsPage";
 import SuppliersPage from "./pages/SuppliersPage";
 import SupplierSrmPage from "./pages/SupplierSrmPage";
+import SupplierEvaluationDashboard from "./pages/SupplierEvaluationDashboard";
 import PlanningWorkbench from "./pages/PlanningWorkbench";
 import HistoricalRequestsImportPage from "./pages/HistoricalRequestsImportPage";
+import RfxPortalPage from "./pages/RfxPortalPage";
 
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import {
@@ -410,10 +412,36 @@ const AppRoutes = () => (
       }
     />
     <Route
+      path="/rfx-portal"
+      element={
+        <ProtectedRoute
+          element={<RfxPortalPage />}
+          requiredPermissions={["rfx.manage", "rfx.respond"]}
+        />
+      }
+    />
+    <Route
       path="/supplier-evaluations"
       element={
         <ProtectedRoute
           element={<SupplierEvaluationsPage />}
+          allowedRoles={[
+            "admin",
+            "SCM",
+            "Contract_Manager",
+            "ProcurementSpecialist",
+            "ProcurementManager",
+          ]}
+          requiredPermissions={["evaluations.manage"]}
+          resourceKey="feature.supplierEvaluations"
+        />
+      }
+    />
+    <Route
+      path="/supplier-dashboard"
+      element={
+        <ProtectedRoute
+          element={<SupplierEvaluationDashboard />}
           allowedRoles={[
             "admin",
             "SCM",
