@@ -25,10 +25,22 @@ export const submitRfxResponse = async (id, payload, options = {}) => {
   return response.data;
 };
 
+export const analyzeRfxQuotations = async (id, quotations, options = {}) => {
+  const response = await api.post(`/api/rfx-portal/${id}/analyze`, { quotations }, options);
+  return response.data;
+};
+
+export const awardRfxResponse = async (id, payload, options = {}) => {
+  const response = await api.post(`/api/rfx-portal/${id}/award`, payload, options);
+  return response.data;
+};
+
 export default {
   listRfxEvents,
   createRfxEvent,
   updateRfxStatus,
   listRfxResponses,
   submitRfxResponse,
+  analyzeRfxQuotations,
+  awardRfxResponse,
 };
