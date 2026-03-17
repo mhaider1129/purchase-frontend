@@ -173,6 +173,39 @@ const Navbar = () => {
       "feature.procurementQueues",
       ["procurement.update-status"],
     );
+    const canAccessProcureToPayReceipts = hasAccess(
+      currentUser,
+      "feature.procureToPayReceipts",
+      ["procure-to-pay.receipts.manage"],
+    );
+    const canAccessProcureToPayInvoices = hasAccess(
+      currentUser,
+      "feature.procureToPayInvoices",
+      ["procure-to-pay.invoices.manage"],
+    );
+    const canAccessProcureToPayPurchaseOrders = hasAccess(
+      currentUser,
+      "feature.procurementPlans",
+      ["procure-to-pay.purchase-orders.manage"],
+    );
+    const canAccessProcureToPayMatching = hasAccess(
+      currentUser,
+      "feature.procureToPayInvoices",
+      ["procure-to-pay.match.manage"],
+    );
+    const canAccessProcureToPayAP = hasAccess(currentUser, "feature.procureToPayInvoices", [
+      "finance.verify",
+    ]);
+    const canAccessProcureToPayPayments = hasAccess(
+      currentUser,
+      "feature.procureToPayInvoices",
+      ["finance.payment.manage"],
+    );
+    const canAccessProcureToPayLifecycle = hasAccess(
+      currentUser,
+      "feature.procureToPayInvoices",
+      ["procure-to-pay.lifecycle.view"],
+    );
     const canAccessCustody = hasAccess(currentUser, "feature.custody", [
       "warehouse.manage-supply",
     ]);
@@ -313,6 +346,60 @@ const Navbar = () => {
             t("navbar.completedRequests"),
             "/completed-assigned",
             "text-gray-700",
+          ),
+        ].filter(Boolean),
+      },
+      {
+        id: "procureToPay",
+        label: t("navbar.groups.procureToPay"),
+        items: [
+          createItem(
+            canAccessProcureToPayLifecycle,
+            "Procure-to-Pay Lifecycle",
+            "/procure-to-pay/lifecycle",
+            "text-violet-700",
+          ),
+          createItem(
+            canAccessProcureToPayPurchaseOrders,
+            "Procure-to-Pay PO",
+            "/procure-to-pay/purchase-orders",
+            "text-slate-700",
+          ),
+          createItem(
+            canAccessProcureToPayReceipts,
+            t("navbar.procureToPayReceipts"),
+            "/procure-to-pay/receipts",
+            "text-blue-700",
+          ),
+          createItem(
+            canAccessProcureToPayInvoices,
+            t("navbar.procureToPayInvoices"),
+            "/procure-to-pay/invoices",
+            "text-indigo-700",
+          ),
+          createItem(
+            canAccessProcureToPayMatching,
+            "Procure-to-Pay Matching",
+            "/procure-to-pay/matching",
+            "text-amber-700",
+          ),
+          createItem(
+            canAccessProcureToPayAP,
+            "Procure-to-Pay AP",
+            "/procure-to-pay/accounts-payable",
+            "text-cyan-700",
+          ),
+          createItem(
+            canAccessProcureToPayPayments,
+            "Procure-to-Pay Payments",
+            "/procure-to-pay/payments",
+            "text-emerald-700",
+          ),
+          createItem(
+            canAccessProcureToPayLifecycle,
+            "Procure-to-Pay Document Flow",
+            "/procure-to-pay/document-flow",
+            "text-purple-700",
           ),
         ].filter(Boolean),
       },

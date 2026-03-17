@@ -68,6 +68,15 @@ import HistoricalRequestsImportPage from "./pages/HistoricalRequestsImportPage";
 import RfxPortalPage from "./pages/RfxPortalPage";
 import RiskManagementPage from "./pages/RiskManagementPage";
 import ItemMasterPage from "./pages/ItemMasterPage";
+import ProcureToPayLifecyclePage from "./pages/ProcureToPayLifecyclePage";
+import ProcureToPayGoodsReceiptsPage from "./pages/ProcureToPayGoodsReceiptsPage";
+import ProcureToPayInvoicesPage from "./pages/ProcureToPayInvoicesPage";
+import ProcureToPayPurchaseOrdersPage from "./pages/ProcureToPayPurchaseOrdersPage";
+import ProcureToPayMatchingPage from "./pages/ProcureToPayMatchingPage";
+import ProcureToPayAccountsPayablePage from "./pages/ProcureToPayAccountsPayablePage";
+import ProcureToPayPaymentsPage from "./pages/ProcureToPayPaymentsPage";
+import ProcureToPayDocumentFlowPage from "./pages/ProcureToPayDocumentFlowPage";
+import ProcureToPayDashboardPage from "./pages/ProcureToPayDashboardPage";
 
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import {
@@ -76,6 +85,7 @@ import {
 } from "./hooks/useAccessControl";
 import { NotificationProvider } from "./components/ui/NotificationProvider";
 import { hasAnyPermission, hasAllPermissions } from "./utils/permissions";
+import Navbar from "./components/Navbar";
 
 const ProtectedRoute = ({
   element,
@@ -225,6 +235,185 @@ const AppRoutes = () => (
         <ProtectedRoute
           element={<ItemMasterPage />}
           resourceKey="feature.itemMaster"
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayLifecyclePage />}
+          requiredPermissions={["procure-to-pay.lifecycle.view"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "warehousekeeper", "warehousemanager", "procurementspecialist"]}
+        />
+      }
+    />
+
+
+    <Route
+      path="/procure-to-pay/lifecycle"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayLifecyclePage />}
+          requiredPermissions={["procure-to-pay.lifecycle.view"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "warehousekeeper", "warehousemanager", "procurementspecialist"]}
+        />
+      }
+    />
+
+    <Route
+      path="/procure-to-pay"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayDashboardPage />}
+          requiredPermissions={["procure-to-pay.lifecycle.view"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "warehousekeeper", "warehousemanager", "procurementspecialist"]}
+        />
+      }
+    />
+    <Route
+      path="/procure-to-pay/receipts"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayGoodsReceiptsPage />}
+          resourceKey="feature.procureToPayReceipts"
+          requiredPermissions={["procure-to-pay.receipts.manage"]}
+          allowedRoles={["scm", "admin", "warehousekeeper", "warehousemanager"]}
+        />
+      }
+    />
+    <Route
+      path="/procure-to-pay/invoices"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayInvoicesPage />}
+          resourceKey="feature.procureToPayInvoices"
+          requiredPermissions={["procure-to-pay.invoices.manage"]}
+          allowedRoles={["scm", "admin", "procurementspecialist"]}
+        />
+      }
+    />
+
+    <Route
+      path="/procure-to-pay/purchase-orders"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayPurchaseOrdersPage />}
+          requiredPermissions={["procure-to-pay.purchase-orders.manage"]}
+          allowedRoles={["scm", "admin", "procurementspecialist"]}
+        />
+      }
+    />
+    <Route
+      path="/procure-to-pay/matching"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayMatchingPage />}
+          requiredPermissions={["procure-to-pay.match.manage"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "procurementspecialist"]}
+        />
+      }
+    />
+    <Route
+      path="/procure-to-pay/accounts-payable"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayAccountsPayablePage />}
+          requiredPermissions={["finance.verify"]}
+          allowedRoles={["finance", "financeapprover", "admin"]}
+        />
+      }
+    />
+    <Route
+      path="/procure-to-pay/payments"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayPaymentsPage />}
+          requiredPermissions={["finance.payment.manage"]}
+          allowedRoles={["finance", "financeapprover", "admin"]}
+        />
+      }
+    />
+    <Route
+      path="/procure-to-pay/document-flow"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayDocumentFlowPage />}
+          requiredPermissions={["procure-to-pay.lifecycle.view"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "warehousekeeper", "warehousemanager", "procurementspecialist"]}
+        />
+      }
+    />
+
+    <Route
+      path="/requests/:requestId/procure-to-pay/purchase-orders"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayPurchaseOrdersPage />}
+          requiredPermissions={["procure-to-pay.purchase-orders.manage"]}
+          allowedRoles={["scm", "admin", "procurementspecialist"]}
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay/matching"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayMatchingPage />}
+          requiredPermissions={["procure-to-pay.match.manage"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "procurementspecialist"]}
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay/accounts-payable"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayAccountsPayablePage />}
+          requiredPermissions={["finance.verify"]}
+          allowedRoles={["finance", "financeapprover", "admin"]}
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay/payments"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayPaymentsPage />}
+          requiredPermissions={["finance.payment.manage"]}
+          allowedRoles={["finance", "financeapprover", "admin"]}
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay/document-flow"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayDocumentFlowPage />}
+          requiredPermissions={["procure-to-pay.lifecycle.view"]}
+          allowedRoles={["scm", "admin", "finance", "financeapprover", "warehousekeeper", "warehousemanager", "procurementspecialist"]}
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay/receipts"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayGoodsReceiptsPage />}
+          resourceKey="feature.procureToPayReceipts"
+          requiredPermissions={["procure-to-pay.receipts.manage"]}
+          allowedRoles={["scm", "admin", "warehousekeeper", "warehousemanager"]}
+        />
+      }
+    />
+    <Route
+      path="/requests/:requestId/procure-to-pay/invoices"
+      element={
+        <ProtectedRoute
+          element={<ProcureToPayInvoicesPage />}
+          resourceKey="feature.procureToPayInvoices"
+          requiredPermissions={["procure-to-pay.invoices.manage"]}
+          allowedRoles={["scm", "admin", "procurementspecialist"]}
         />
       }
     />
@@ -607,16 +796,9 @@ const AppRoutes = () => (
 );
 
 const AppShell = ({ children }) => {
-  const location = useLocation();
-  const authRoutes = ["/login", "/register", "/request-account"];
-  const isAuthRoute = authRoutes.includes(location.pathname);
-
-  if (isAuthRoute) {
-    return <>{children}</>;
-  }
-
   return (
-    <div className="app-shell">
+    <div className="app-shell min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Navbar />
       <main className="app-main">{children}</main>
     </div>
   );

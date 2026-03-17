@@ -175,6 +175,8 @@
     "viewIncomplete": "View Incomplete Requests",
     "registerUser": "Register User",
     "myAssigned": "My Assigned Requests",
+    "procureToPayReceipts": "Goods Receipts (P2P)",
+    "procureToPayInvoices": "Invoices Input (P2P)",
     "completedRequests": "Completed Requests",
     "custodyIssue": "Issue Custody",
     "custodyIssued": "Issued Custodies",
@@ -199,7 +201,8 @@
       "operations": "Operations",
       "insights": "Insights & Analytics",
       "governance": "Governance",
-      "account": "Account"
+      "account": "Account",
+      "procureToPay": "Procure-to-Pay"
     },
     "notifications": "Notifications",
     "noNotifications": "You're all caught up!",
