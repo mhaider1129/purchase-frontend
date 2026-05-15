@@ -648,11 +648,22 @@ const Management = () => {
   };
 
   const startEdit = (user) => {
+    const hasDepartment = departments.some((dept) => dept.id === user.department_id);
+    const normalizedDepartmentId = hasDepartment && user.department_id
+      ? String(user.department_id)
+      : '';
+    const hasSectionInDepartment = normalizedDepartmentId
+      ? (departments
+          .find((dept) => dept.id === Number(normalizedDepartmentId))
+          ?.sections || [])
+          .some((section) => section.id === user.section_id)
+      : false;
+
     setEditUserId(user.id);
     setEditData({
       role: user.role || '',
-      department_id: user.department_id ? String(user.department_id) : '',
-      section_id: user.section_id ? String(user.section_id) : '',
+      department_id: normalizedDepartmentId,
+      section_id: hasSectionInDepartment && user.section_id ? String(user.section_id) : '',
       can_request_medication: Boolean(user.can_request_medication),
       warehouse_id: user.warehouse_id ? String(user.warehouse_id) : '',
     });
@@ -669,11 +680,25 @@ const Management = () => {
       alert('Select the warehouse this user manages before saving.');
       return;
     }
+    const normalizedDepartmentId = editData.department_id
+      && departments.some((dept) => dept.id === Number(editData.department_id))
+      ? Number(editData.department_id)
+      : null;
+
+    const normalizedSectionId = normalizedDepartmentId
+      ? (() => {
+          const matchedDepartment = departments.find((dept) => dept.id === normalizedDepartmentId);
+          return matchedDepartment?.sections?.some((section) => section.id === Number(editData.section_id))
+            ? Number(editData.section_id)
+            : null;
+        })()
+      : null;
+
     try {
       await api.patch(`/api/users/${id}/assign`, {
         role: editData.role,
-        department_id: editData.department_id ? Number(editData.department_id) : null,
-        section_id: editData.section_id ? Number(editData.section_id) : null,
+        department_id: normalizedDepartmentId,
+        section_id: normalizedSectionId,
         warehouse_id: editData.warehouse_id ? Number(editData.warehouse_id) : null,
         can_request_medication: editData.can_request_medication,
       });

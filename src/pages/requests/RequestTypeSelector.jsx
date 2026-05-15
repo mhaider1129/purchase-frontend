@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import axios from '../../api/axios';
 import { HelpTooltip } from '../../components/ui/HelpTooltip';
+import { normalizeRole, roleMatches } from '../../utils/roleNormalization';
 
 const BASE_BUTTON_STYLE =
   'block w-full py-2 px-4 rounded text-white font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm';
@@ -38,7 +39,7 @@ const ACTION_GROUPS = [
         ariaLabelKey: 'requestTypeSelector.actions.stockRequest.aria',
         descriptionKey: 'requestTypeSelector.actions.stockRequest.description',
         path: '/requests/stock',
-        roles: ['warehousemanager', 'warehouse_manager', 'warehouse_keeper'],
+        predicate: ({ warehouse_id }) => Boolean(warehouse_id),
         buttonClassName: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-400',
         icon: Package,
         featured: true,
@@ -274,6 +275,7 @@ const RequestTypeSelector = () => {
     department_name: '',
     section_id: null,
     can_request_medication: false,
+    warehouse_id: null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -285,11 +287,12 @@ const RequestTypeSelector = () => {
     try {
       const res = await axios.get('/api/users/me');
       setUserInfo({
-        role: res.data.role?.toLowerCase() || '',
+        role: normalizeRole(res.data.role),
         department_id: res.data.department_id ?? null,
         department_name: res.data.department_name?.toLowerCase() || '',
         section_id: res.data.section_id ?? null,
         can_request_medication: Boolean(res.data.can_request_medication),
+        warehouse_id: res.data.warehouse_id ?? null,
       });
     } catch (err) {
       console.error('❌ Failed to load user info:', err);
@@ -323,12 +326,25 @@ const RequestTypeSelector = () => {
     return ACTION_GROUPS.map((group) => ({
       ...group,
       actions: group.actions.filter((action) => {
-        const matchesRole = !action.roles || action.roles.includes(userInfo.role);
+        const matchesRole = roleMatches(userInfo.role, action.roles);
         const passesPredicate = action.predicate ? action.predicate(userInfo) : true;
         return matchesRole && passesPredicate;
       }),
     })).filter((group) => group.actions.length > 0);
   }, [userInfo]);
+
+
+  useEffect(() => {
+    if (isLoading || error || visibleGroups.length > 0) return;
+
+    console.warn('⚠️ requestTypeSelector.zero_visible_actions', {
+      event: 'requestTypeSelector.zero_visible_actions',
+      role: userInfo.role || 'unknown',
+      department_id: userInfo.department_id ?? null,
+      section_id: userInfo.section_id ?? null,
+      timestamp: new Date().toISOString(),
+    });
+  }, [isLoading, error, visibleGroups.length, userInfo]);
 
   const totalActionCount = useMemo(
     () =>
