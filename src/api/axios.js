@@ -33,11 +33,9 @@ const resolveBrowserBase = () => {
     return { primary: apiHost, fallback: apiHost };
   }
 
-  const bareHostname = hostname.replace(/^www\./, "");
-  const apiHostname = `api.${bareHostname}`;
-  const apiURL = `${protocol}//${apiHostname}`;
+  const sameOriginApi = `${origin}/api`;
 
-  return { primary: apiURL, fallback: origin };
+  return { primary: sameOriginApi, fallback: sameOriginApi };
 };
 
 const { primary: browserPrimary } = resolveBrowserBase();
@@ -63,8 +61,7 @@ const normalizeApiPath = (url) => {
   })();
 
   if (basePath === "/api" && url.startsWith("/api/")) {
-    // Keep request relative to baseURL (/api) instead of absolute /users/...
-    return url.replace(/^\/api\//, "");
+    return url.replace(/^\/api/, "");
   }
 
   return url;
