@@ -37,7 +37,7 @@ const ACTION_GROUPS = [
         ariaLabelKey: 'requestTypeSelector.actions.stockRequest.aria',
         descriptionKey: 'requestTypeSelector.actions.stockRequest.description',
         path: '/requests/stock',
-        predicate: ({ warehouse_id }) => Boolean(warehouse_id),
+        roles: ['warehousemanager', 'warehouse_manager', 'warehouse_keeper'],
         buttonClassName: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-400',
         icon: Package,
         featured: true,
@@ -273,7 +273,6 @@ const RequestTypeSelector = () => {
     department_name: '',
     section_id: null,
     can_request_medication: false,
-    warehouse_id: null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -290,7 +289,6 @@ const RequestTypeSelector = () => {
         department_name: res.data.department_name?.toLowerCase() || '',
         section_id: res.data.section_id ?? null,
         can_request_medication: Boolean(res.data.can_request_medication),
-        warehouse_id: res.data.warehouse_id ?? null,
       });
     } catch (err) {
       console.error('❌ Failed to load user info:', err);
