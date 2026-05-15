@@ -63,7 +63,8 @@ const normalizeApiPath = (url) => {
   })();
 
   if (basePath === "/api" && url.startsWith("/api/")) {
-    return url.replace(/^\/api/, "");
+    // Keep request relative to baseURL (/api) instead of absolute /users/...
+    return url.replace(/^\/api\//, "");
   }
 
   return url;

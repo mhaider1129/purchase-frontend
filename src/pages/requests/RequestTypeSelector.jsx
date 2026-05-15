@@ -282,7 +282,7 @@ const RequestTypeSelector = () => {
     setError('');
 
     try {
-      const res = await axios.get('/api/users/me');
+      const res = await axios.get('/users/me');
       setUserInfo({
         role: res.data.role?.toLowerCase() || '',
         department_id: res.data.department_id ?? null,
