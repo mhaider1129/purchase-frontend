@@ -47,7 +47,7 @@ const Login = () => {
       persistToken(token);
 
       try {
-        const userRes = await api.get('/users/me');
+        const userRes = await api.get('/api/users/me');
         const user = userRes.data;
 
         if (!user || user.is_active === false) {

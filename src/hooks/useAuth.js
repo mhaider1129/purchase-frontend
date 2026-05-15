@@ -67,7 +67,7 @@ const useProvideAuth = () => {
 
       setIsLoading(true);
       try {
-        const res = await axios.get("/users/me", {
+        const res = await axios.get("/api/users/me", {
           headers: { Authorization: `Bearer ${activeToken}` },
         });
         const profile = res.data || {};
