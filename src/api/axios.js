@@ -42,11 +42,8 @@ const { primary: browserPrimary } = resolveBrowserBase();
 
 const API_BASE = normalizedEnvBase || browserPrimary;
 
-// ✅ Create axios instance
-
 const normalizeApiPath = (url) => {
   if (typeof url !== "string") return url;
-
   if (!API_BASE) return url;
 
   const basePath = (() => {
@@ -67,59 +64,68 @@ const normalizeApiPath = (url) => {
   return url;
 };
 
+const applySharedAxiosConfig = (client) => {
+  client.defaults.baseURL = API_BASE;
+  client.defaults.timeout = 15000;
+  client.defaults.headers = {
+    ...client.defaults.headers,
+    "Content-Type": "application/json",
+  };
+
+  client.interceptors.request.use(
+    (config) => {
+      config.url = normalizeApiPath(config.url);
+
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      console.error("🔴 Request Error:", error);
+      return Promise.reject(error);
+    },
+  );
+
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        console.warn("🔒 Unauthorized — Token may be expired");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+
+      if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
+        console.debug("⚠️ Request canceled:", error.message);
+        return Promise.reject(error);
+      }
+
+      if (error.response) {
+        console.error(
+          `❌ ${error.response.status}: ${error.response.data.message}`,
+        );
+      } else {
+        console.error("❌ Network or Server error:", error.message);
+      }
+
+      return Promise.reject(error);
+    },
+  );
+};
+
+// ✅ Create axios instance
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 15000, // ⏱️ optional: 15s timeout to catch network issues
+  timeout: 15000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// ✅ Attach token automatically
-api.interceptors.request.use(
-  (config) => {
-    config.url = normalizeApiPath(config.url);
-
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    console.error("🔴 Request Error:", error);
-    return Promise.reject(error);
-  },
-);
-
-// ⚠️ Global error interceptor (optional enhancement)
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Handle token expiration or unauthorized access
-    if (error.response?.status === 401) {
-      console.warn("🔒 Unauthorized — Token may be expired");
-      localStorage.removeItem("token");
-      window.location.href = "/login"; // redirect to login
-    }
-
-    // Ignore abort errors triggered by Axios cancelation
-    if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
-      console.debug("⚠️ Request canceled:", error.message);
-      return Promise.reject(error);
-    }
-
-    // General logging
-    if (error.response) {
-      console.error(
-        `❌ ${error.response.status}: ${error.response.data.message}`,
-      );
-    } else {
-      console.error("❌ Network or Server error:", error.message);
-    }
-
-    return Promise.reject(error);
-  },
-);
+// Apply same behavior to both the shared axios singleton and our scoped api instance.
+applySharedAxiosConfig(axios);
+applySharedAxiosConfig(api);
 
 export default api;
