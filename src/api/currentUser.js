@@ -11,9 +11,11 @@ const resolveCurrentUserEndpoint = () => {
     const pathname = /^https?:\/\//i.test(baseURL)
       ? new URL(baseURL).pathname
       : baseURL;
-
     const normalizedPath = pathname.replace(/\/+$/, "");
-    if (normalizedPath === "/api" || normalizedPath.endsWith("/api")) {
+
+    // If the configured base already includes an "api" segment anywhere,
+    // use the relative route to avoid duplicated "/api" prefixes.
+    if (/(^|\/)api(\/|$)/i.test(normalizedPath)) {
       return "/users/me";
     }
   } catch {
