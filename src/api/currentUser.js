@@ -27,6 +27,23 @@ const resolveCurrentUserEndpoint = () => {
 
 const CURRENT_USER_ENDPOINT = resolveCurrentUserEndpoint();
 
+const alternateCurrentUserEndpoint = (endpoint) => {
+  if (endpoint === "/api/users/me") return "/users/me";
+  if (endpoint === "/users/me") return "/api/users/me";
+  return null;
+};
+
 export const fetchCurrentUser = async (config = {}) => {
-  return api.get(CURRENT_USER_ENDPOINT, config);
+  try {
+    return await api.get(CURRENT_USER_ENDPOINT, config);
+  } catch (err) {
+    const status = err?.response?.status;
+    const fallbackEndpoint = alternateCurrentUserEndpoint(CURRENT_USER_ENDPOINT);
+
+    if (status !== 404 || !fallbackEndpoint) {
+      throw err;
+    }
+
+    return api.get(fallbackEndpoint, config);
+  }
 };
