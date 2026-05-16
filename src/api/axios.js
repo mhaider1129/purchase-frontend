@@ -19,17 +19,17 @@ const resolveBrowserBase = () => {
     /^(\d+\.){3}\d+$/.test(hostname) || hostname.includes(":");
 
   if (localHosts.has(hostname) || hostname.endsWith(".local")) {
-    const localBackend = `${protocol}//${hostname}:5000`;
+    const localBackend = `${protocol}//${hostname}:5000/api`;
     return { primary: localBackend, fallback: localBackend };
   }
 
   if (isIPAddress) {
-    const directHost = `${protocol}//${hostname}`;
-    return { primary: directHost, fallback: directHost };
+    const directHostApi = `${protocol}//${hostname}:5000/api`;
+    return { primary: directHostApi, fallback: directHostApi };
   }
 
   if (hostname.startsWith("api.")) {
-    const apiHost = `${protocol}//${hostname}`;
+    const apiHost = `${protocol}//${hostname}/api`;
     return { primary: apiHost, fallback: apiHost };
   }
 
