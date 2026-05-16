@@ -23,6 +23,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import axios from '../../api/axios';
+import { fetchCurrentUser } from '../../api/currentUser';
 import { HelpTooltip } from '../../components/ui/HelpTooltip';
 
 const BASE_BUTTON_STYLE =
@@ -282,7 +283,7 @@ const RequestTypeSelector = () => {
     setError('');
 
     try {
-      const res = await axios.get('/api/users/me');
+      const res = await fetchCurrentUser();
       setUserInfo({
         role: res.data.role?.toLowerCase() || '',
         department_id: res.data.department_id ?? null,
