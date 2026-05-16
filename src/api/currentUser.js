@@ -1,49 +1,50 @@
 import api from "./axios";
 
-const resolveCurrentUserEndpoint = () => {
+const normalizeBasePath = () => {
   const baseURL = api?.defaults?.baseURL || "";
 
   if (!baseURL) {
-    return "/api/users/me";
+    return "";
   }
 
   try {
     const pathname = /^https?:\/\//i.test(baseURL)
       ? new URL(baseURL).pathname
       : baseURL;
-    const normalizedPath = pathname.replace(/\/+$/, "");
-
-    // If the configured base already includes an "api" segment anywhere,
-    // use the relative route to avoid duplicated "/api" prefixes.
-    if (/(^|\/)api(\/|$)/i.test(normalizedPath)) {
-      return "/users/me";
-    }
+    return pathname.replace(/\/+$/, "");
   } catch {
-    // Fall back to the safest route shape below.
+    return "";
+  }
+};
+
+const buildCandidateEndpoints = () => {
+  const basePath = normalizeBasePath();
+
+  if (/(^|\/)api(\/|$)/i.test(basePath)) {
+    return ["/users/me", "/auth/me"];
   }
 
-  return "/api/users/me";
+  return ["/api/users/me", "/users/me", "/auth/me"];
 };
 
-const CURRENT_USER_ENDPOINT = resolveCurrentUserEndpoint();
+const CURRENT_USER_ENDPOINTS = buildCandidateEndpoints();
 
-const alternateCurrentUserEndpoint = (endpoint) => {
-  if (endpoint === "/api/users/me") return "/users/me";
-  if (endpoint === "/users/me") return "/api/users/me";
-  return null;
-};
+const isNotFoundError = (error) => error?.response?.status === 404;
 
 export const fetchCurrentUser = async (config = {}) => {
-  try {
-    return await api.get(CURRENT_USER_ENDPOINT, config);
-  } catch (err) {
-    const status = err?.response?.status;
-    const fallbackEndpoint = alternateCurrentUserEndpoint(CURRENT_USER_ENDPOINT);
+  let lastError;
 
-    if (status !== 404 || !fallbackEndpoint) {
-      throw err;
+  for (const endpoint of CURRENT_USER_ENDPOINTS) {
+    try {
+      return await api.get(endpoint, config);
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
+
+      lastError = error;
     }
-
-    return api.get(fallbackEndpoint, config);
   }
+
+  throw lastError;
 };
