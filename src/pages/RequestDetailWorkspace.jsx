@@ -1,3 +1,7 @@
+import RequestApprovalsReview from "../components/requests/RequestApprovalsReview";
+import RequestItemsFocus from "../components/requests/RequestItemsFocus";
+import { matchesSearchTokens } from "../utils/search";
+import RequestOverviewReview from "../components/requests/RequestOverviewReview";
 import RequestTimeline from '../components/requests/RequestTimeline';
 import WorkspaceTableScroll from '../components/workspaces/WorkspaceTableScroll';
 import RequestActionContext from '../components/workspaces/RequestActionContext';
@@ -17,21 +21,34 @@ const EMPTY_OBJECT = {};
 
 export const isRejectedItem = (item) => String(item?.approval_status || '').trim().toLowerCase() === 'rejected';
 export const getWorkspaceItemStatus = (item) => isRejectedItem(item) ? 'Rejected' : (item?.procurement_status || 'Pending');
-export const filterWorkspaceItems = (items, query = '', status = 'all') => {
-  const normalizedQuery = query.trim().toLowerCase();
+export const needsItemIdentity = (item) => !isRejectedItem(item) && !item.generic_item_id && !['service', 'approved_free_text_exception'].includes(item.request_mode);
+export const hasRemainingItemQuantity = (item) => !isRejectedItem(item) && !['not_procured', 'canceled', 'cancelled'].includes(String(item.procurement_status || '').trim().toLowerCase()) && Number(item.remaining_quantity) > 0;
+export const filterWorkspaceItems = (items, query = '', status = 'all', focus = 'all') => {
   return items.filter((item) => {
     const itemStatus = String(getWorkspaceItemStatus(item)).trim().toLowerCase();
     const matchesStatus = status === 'all' || itemStatus === status;
-    const matchesQuery = !normalizedQuery || [
+    const matchesQuery = matchesSearchTokens(query, [
       item.item_name,
       item.brand,
       item.category,
       item.specs,
       item.intended_use,
       item.supplier_name,
-    ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
-    return matchesStatus && matchesQuery;
+      item.item_id || item.id,
+      item.generic_item_id,
+    ]);
+    const matchesFocus = focus === 'remaining' ? hasRemainingItemQuantity(item) : focus === 'identity' ? needsItemIdentity(item) : true;
+    return matchesStatus && matchesQuery && matchesFocus;
   });
+};
+
+export const summarizeWorkspaceItems = (items = [], approvals = [], attachments = []) => {
+  const eligible = items.filter((item) => !isRejectedItem(item));
+  const fullyProcured = eligible.filter((item) => Number(item.requested_quantity) > 0 && Number(item.purchased_quantity || 0) >= Number(item.requested_quantity)).length;
+  const partiallyProcured = eligible.filter((item) => Number(item.purchased_quantity) > 0 && Number(item.purchased_quantity) < Number(item.requested_quantity)).length;
+  const remainingQuantity = eligible.reduce((sum, item) => sum + Math.max(0, Number(item.remaining_quantity) || 0), 0);
+  const pendingApprovals = approvals.filter((approval) => String(approval.status || '').trim().toLowerCase() === 'pending').length;
+  return { totalItems: items.length, fullyProcured, partiallyProcured, remainingQuantity, pendingApprovals, attachmentsCount: attachments.length };
 };
 
 const statusClasses = {
@@ -121,6 +138,7 @@ const RequestDetailWorkspace = () => {
   const [sortItemsAlphabetically, setSortItemsAlphabetically] = useState(false);
   const [itemQuery, setItemQuery] = useState('');
   const [itemStatusFilter, setItemStatusFilter] = useState('all');
+  const [itemFocus, setItemFocus] = useState('all');
 
   const fetchWorkspace = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -157,18 +175,14 @@ const RequestDetailWorkspace = () => {
   const actions = new Set(workspace?.available_actions || EMPTY_ARRAY);
   const procurableItems = useMemo(() => items.filter((item) => !isRejectedItem(item)), [items]);
   const displayedItems = useMemo(
-    () => getDisplayItems(filterWorkspaceItems(items, itemQuery, itemStatusFilter), sortItemsAlphabetically),
-    [items, itemQuery, itemStatusFilter, sortItemsAlphabetically],
+    () => getDisplayItems(filterWorkspaceItems(items, itemQuery, itemStatusFilter, itemFocus), sortItemsAlphabetically),
+    [items, itemQuery, itemStatusFilter, itemFocus, sortItemsAlphabetically],
   );
 
-  const summary = useMemo(() => {
-    const totalItems = items.length;
-    const fullyProcured = items.filter((item) => Number(item.remaining_quantity || 0) <= 0 && Number(item.requested_quantity || 0) > 0).length;
-    const partiallyProcured = items.filter((item) => Number(item.purchased_quantity || 0) > 0 && Number(item.remaining_quantity || 0) > 0).length;
-    const remainingQuantity = items.reduce((sum, item) => sum + Number(item.remaining_quantity || 0), 0);
-    const pendingApprovals = approvals.filter((approval) => String(approval.status || '').toLowerCase() === 'pending').length;
-    return { totalItems, fullyProcured, partiallyProcured, remainingQuantity, pendingApprovals, attachmentsCount: attachments.length };
-  }, [items, approvals, attachments]);
+  const summary = useMemo(
+    () => summarizeWorkspaceItems(items, approvals, attachments),
+    [items, approvals, attachments],
+  );
 
   const procurementProgress = useMemo(() => {
     const requested = procurableItems.reduce((sum, item) => sum + Number(item.requested_quantity || 0), 0);
@@ -453,14 +467,12 @@ const RequestDetailWorkspace = () => {
                   <div><dt className="text-xs uppercase text-slate-500">Required delivery</dt><dd className="mt-1 text-slate-800">{formatDate(request.required_delivery_date)}</dd></div>
                 </dl>
               </section>
-              <section className="rounded-2xl bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-900">Current work state</h2>
-                <div className="mt-4 space-y-3 text-sm">
-                  <p><span className="font-semibold text-slate-600">Bottleneck:</span> {request.current_bottleneck || '—'}</p>
-                  <p><span className="font-semibold text-slate-600">Next action:</span> {request.next_required_action || '—'}</p>
-                  <p><span className="font-semibold text-slate-600">Updated:</span> {formatDateTime(request.updated_at)}</p>
-                </div>
-              </section>
+              <RequestOverviewReview
+                request={request}
+                summary={summary}
+                unfinishedCount={completionReadiness.incompleteItems.length}
+                onNavigate={setActiveTab}
+              />
             </div>
             {priority ? <section aria-labelledby="request-priority-heading" className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
               <h2 id="request-priority-heading" className="text-lg font-bold text-blue-950">Procurement Priority</h2>
@@ -477,7 +489,7 @@ const RequestDetailWorkspace = () => {
           </div>
         )}
 
-        {actions.has('resolve_item_identity') && items.some(item => !isRejectedItem(item) && !item.generic_item_id && !['service','approved_free_text_exception'].includes(item.request_mode)) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>Some items still need Item Master identity. Resolve them from the Items tab. Management controls temporary free-text procurement during catalog setup.</p><button type="button" onClick={() => setActiveTab('Items')} className="rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold">Review item identities</button></div>}
+        {actions.has('resolve_item_identity') && items.some(needsItemIdentity) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>Some items still need Item Master identity. Resolve them from the Items tab. Management controls temporary free-text procurement during catalog setup.</p><button type="button" onClick={() => setActiveTab('Items')} className="rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold">Review item identities</button></div>}
         {activeTab === 'Items' && (
           <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-4 py-3 print:hidden">
@@ -486,7 +498,7 @@ const RequestDetailWorkspace = () => {
                 <p className="text-xs text-slate-500">Sorting only changes this view and does not update the saved request.</p>
               </div>
               <div className="flex flex-1 flex-wrap items-end justify-end gap-2">
-                <label className="min-w-[15rem] text-xs font-semibold text-slate-600">Search items<input type="search" value={itemQuery} onChange={(event) => setItemQuery(event.target.value)} placeholder="Name, specs, use, or supplier" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+                <label className="min-w-[15rem] text-xs font-semibold text-slate-600">Search items<input type="search" value={itemQuery} onChange={(event) => setItemQuery(event.target.value)} placeholder="Name, specs, supplier, or ID" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
                 <label className="text-xs font-semibold text-slate-600">Status<select value={itemStatusFilter} onChange={(event) => setItemStatusFilter(event.target.value)} className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="all">All statuses</option>{Array.from(new Set(items.map((item) => String(getWorkspaceItemStatus(item)).trim().toLowerCase()))).sort().map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</select></label>
               {items.length > 1 ? (
                 <button
@@ -499,11 +511,20 @@ const RequestDetailWorkspace = () => {
               ) : null}
               </div>
             </div>
+            <RequestItemsFocus
+              items={items}
+              counts={{ remaining: items.filter(hasRemainingItemQuantity).length, identity: items.filter(needsItemIdentity).length }}
+              value={itemFocus}
+              onChange={setItemFocus}
+              visibleCount={displayedItems.length}
+              filtered={Boolean(itemQuery.trim()) || itemStatusFilter !== 'all' || itemFocus !== 'all'}
+              onReset={() => { setItemQuery(''); setItemStatusFilter('all'); setItemFocus('all'); }}
+            />
             <WorkspaceTableScroll className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Item</th><th className="px-4 py-3">Specs</th><th className="px-4 py-3">Intended use</th><th className="px-4 py-3">Unit of measure</th><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Purchased</th><th className="px-4 py-3">Remaining</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Supplier</th><th className="px-4 py-3">Latest unit cost</th><th className="px-4 py-3 print:hidden">Actions</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {displayedItems.map((item) => <tr key={item.item_id || item.id} className="align-top"><td className="px-4 py-3"><p className="font-semibold text-slate-900">{item.item_name}</p><p className="text-xs text-slate-500">{item.brand || item.category || ''}</p><p className="mt-1 text-xs text-amber-700">{item.catalog_status || 'Legacy identity unresolved'}{item.generic_item_id ? ` · Generic #${item.generic_item_id}` : ''}</p></td><td className="max-w-xs whitespace-pre-wrap px-4 py-3 text-slate-700">{item.specs || '—'}</td><td className="max-w-xs whitespace-pre-wrap px-4 py-3 text-slate-700">{item.intended_use || '—'}</td><td className="px-4 py-3">{item.unit_of_measure || '—'}</td><td className="px-4 py-3">{item.requested_quantity}</td><td className="px-4 py-3">{item.purchased_quantity}</td><td className="px-4 py-3">{item.remaining_quantity}</td><td className="px-4 py-3"><StatusBadge>{getWorkspaceItemStatus(item)}</StatusBadge></td><td className="px-4 py-3">{item.supplier_name || '—'}</td><td className="px-4 py-3">{formatMoney(item.unit_cost)}</td><td className="px-4 py-3 print:hidden"><div className="flex flex-wrap gap-2">{actions.has('register_procurement_entry') && !isRejectedItem(item) ? <button onClick={() => openProcurementModal(item)} className="rounded bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">Register</button> : null}{actions.has('resolve_item_identity') && !isRejectedItem(item) ? <button onClick={() => setResolutionItem(item)} className="rounded bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Resolve identity</button> : null}<button onClick={() => { setHistoryItem(item); setActiveTab('Procurement'); }} className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold">History</button>{actions.has('add_note') ? <button onClick={() => { setNoteTarget(item); setNoteModalOpen(true); }} className="rounded bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Add Note</button> : null}{actions.has('mark_item_unable_to_procure') && !isRejectedItem(item) ? <><button onClick={() => openItemStatusModal(item, 'completed')} className="rounded bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Close as Completed</button><button onClick={() => openItemStatusModal(item, 'not_procured')} className="rounded bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Not Procured</button><button onClick={() => openItemStatusModal(item, 'canceled')} className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Cancel Item</button></> : null}</div></td></tr>)}
+                  {displayedItems.map((item) => <tr key={item.item_id || item.id} className="align-top"><td className="px-4 py-3"><p className="font-semibold text-slate-900">{item.item_name}</p><p className="text-xs text-slate-500">{item.brand || item.category || ''}</p><p className="mt-1 text-xs text-amber-700">{item.catalog_status || (item.generic_item_id ? 'Catalog identity linked' : item.request_mode === 'service' ? 'Service item' : item.request_mode === 'approved_free_text_exception' ? 'Approved free-text exception' : 'Identity unresolved')}{item.generic_item_id ? ` · Generic #${item.generic_item_id}` : ''}</p></td><td className="max-w-xs whitespace-pre-wrap px-4 py-3 text-slate-700">{item.specs || '—'}</td><td className="max-w-xs whitespace-pre-wrap px-4 py-3 text-slate-700">{item.intended_use || '—'}</td><td className="px-4 py-3">{item.unit_of_measure || '—'}</td><td className="px-4 py-3">{item.requested_quantity}</td><td className="px-4 py-3">{item.purchased_quantity}</td><td className="px-4 py-3">{item.remaining_quantity}</td><td className="px-4 py-3"><StatusBadge>{getWorkspaceItemStatus(item)}</StatusBadge></td><td className="px-4 py-3">{item.supplier_name || '—'}</td><td className="px-4 py-3">{formatMoney(item.unit_cost)}</td><td className="px-4 py-3 print:hidden"><div className="flex flex-wrap gap-2">{actions.has('register_procurement_entry') && !isRejectedItem(item) ? <button onClick={() => openProcurementModal(item)} className="rounded bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">Register</button> : null}{actions.has('resolve_item_identity') && !isRejectedItem(item) ? <button onClick={() => setResolutionItem(item)} className="rounded bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Resolve identity</button> : null}<button onClick={() => { setHistoryItem(item); setActiveTab('Procurement'); }} className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold">History</button>{actions.has('add_note') ? <button onClick={() => { setNoteTarget(item); setNoteModalOpen(true); }} className="rounded bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Add Note</button> : null}{actions.has('mark_item_unable_to_procure') && !isRejectedItem(item) ? <><button onClick={() => openItemStatusModal(item, 'completed')} className="rounded bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Close as Completed</button><button onClick={() => openItemStatusModal(item, 'not_procured')} className="rounded bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Not Procured</button><button onClick={() => openItemStatusModal(item, 'canceled')} className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Cancel Item</button></> : null}</div></td></tr>)}
                   {displayedItems.length === 0 ? <tr><td colSpan="11" className="p-6"><EmptyState>{items.length === 0 ? 'No requested items found.' : 'No items match the current filters.'}</EmptyState></td></tr> : null}
                 </tbody>
               </table>
@@ -511,12 +532,7 @@ const RequestDetailWorkspace = () => {
           </section>
         )}
 
-        {activeTab === 'Approvals' && (
-          <section className="space-y-4">
-            {approvals.map((approval) => <div key={approval.approval_id} className="rounded-2xl bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-slate-500">Level {approval.approval_level}</p><h3 className="text-lg font-bold text-slate-900">{approval.approver_name || 'Unassigned approver'} <span className="text-sm font-normal text-slate-500">{approval.approver_role}</span></h3></div><StatusBadge>{approval.status}</StatusBadge></div><p className="mt-3 text-sm text-slate-600">{approval.comments || 'No comments.'}</p><p className="mt-2 text-xs text-slate-500">{approval.is_active ? 'Active step • ' : ''}Approved at: {formatDateTime(approval.approved_at)} • Waiting hours: {approval.waiting_time_hours || 0}</p></div>)}
-            {approvals.length === 0 ? <EmptyState>No approvals found.</EmptyState> : null}
-          </section>
-        )}
+        {activeTab === 'Approvals' && <RequestApprovalsReview approvals={approvals} />}
 
         {activeTab === 'Procurement' && (
           <section className="space-y-4">
