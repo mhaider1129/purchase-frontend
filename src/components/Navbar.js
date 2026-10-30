@@ -420,6 +420,7 @@ const Navbar = () => {
             "/audit-registry",
             "text-blue-600",
           ),
+          createItem(true,t("navbar.surgicalConsignments",{defaultValue:"Surgical consignment requests"}),"/surgical-consignments","text-indigo-700"),
           resolveFeatureNavItem("allRequests", canViewAllRequests),
           resolveFeatureNavItem("historicalRequests", canImportHistorical),
           resolveFeatureNavItem("procurementPlans", canManageProcurement),
@@ -603,7 +604,7 @@ const Navbar = () => {
           ),
           createItem(
             canManageTechnicalInspections,
-            t("navbar.technicalInspections"),
+            t("navbar.technicalReviewsInspections", { defaultValue: "Technical Reviews & Inspections" }),
             "/technical-inspections",
             "text-emerald-600",
           ),
@@ -861,6 +862,18 @@ const Navbar = () => {
         label: t("navbar.groups.account"),
         items: [
           createItem(true, t("navbar.myTasks"), "/tasks", "text-blue-600"),
+          createItem(
+            true,
+            t("navbar.deviceDemos", { defaultValue: "Device demo workspace" }),
+            "/device-demos",
+            "text-indigo-700",
+          ),
+          createItem(
+            true,
+            t("navbar.myTechnicalReviews", { defaultValue: "My technical reviews" }),
+            "/technical-inspections",
+            "text-indigo-700",
+          ),
           createItem(
             true,
             t("navbar.myEvaluations"),

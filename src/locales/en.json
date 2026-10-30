@@ -327,11 +327,15 @@
     "reviewNote": "Requests are reviewed by the Supply Chain Manager before access is granted."
   },
   "navbar": {
+    "surgicalConsignments": "Surgical consignment request",
+    "deviceDemos": "Device demo workspace",
+    "myTechnicalReviews": "My technical reviews",
     "approvals": "Approvals",
     "approvalHistory": "Approval History",
     "openRequests": "My Open Requests",
     "myMaintenance": "My Maintenance Requests",
     "engineerMaintenanceStatus": "Maintenance Status",
+    "technicalReviewsInspections": "Technical Reviews & Inspections",
     "technicalInspections": "Technical Inspections",
     "warehouseInventory": "Warehouse Inventory",
     "itemMaster": "Item Master Data",
@@ -569,6 +573,7 @@
       "availableQuantity": "Available: {{count}}"
     },
     "itemStatus": {
+      "availableInStock": "Available in Stock",
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected"
@@ -1255,6 +1260,7 @@
       "results_many": "{{count}} workflows available"
     },
     "actions": {
+      "surgicalConsignment": {"label": "Surgical consignment request", "aria": "Open surgical consignment requests", "description": "Request procedure-specific vendor stock and bill only confirmed usage."},
       "retry": "Retry",
       "stockRequest": {
         "label": "Stock Purchase Request",
@@ -1702,6 +1708,7 @@
         "status": "Status"
       },
       "statusLabels": {
+        "availableInStock": "Available in Stock",
         "purchased": "Purchased",
         "partiallyPurchased": "Partially purchased",
         "notPurchased": "Not purchased"
@@ -2104,6 +2111,7 @@
     "emptyState": "No custody records have been issued yet.",
     "emptyStateFiltered": "No custody records match your filters.",
     "statusLabels": {
+      "availableInStock": "Available in Stock",
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -2293,6 +2301,7 @@
     "total": "Total",
     "itemStatus": "Item Status",
     "itemStatusLabels": {
+      "availableInStock": "Available in Stock",
       "purchased": "Purchased",
       "partiallyPurchased": "Partially Purchased",
       "notPurchased": "Not Purchased"
@@ -2431,6 +2440,7 @@
     "noItems": "No items were included with this request.",
     "unnamedItem": "Unnamed item",
     "itemStatus": {
+      "availableInStock": "Available in Stock",
       "purchased": "Purchased",
       "partiallyPurchased": "Partially purchased",
       "notPurchased": "Not purchased"

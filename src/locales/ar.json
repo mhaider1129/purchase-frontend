@@ -331,11 +331,15 @@
     "reviewNote": "يراجع مسؤول سلسلة الإمداد الطلبات قبل منح صلاحية الوصول."
   },
   "navbar": {
+    "surgicalConsignments": "طلب أمانة جراحية",
+    "deviceDemos": "مساحة تجارب الأجهزة",
+    "myTechnicalReviews": "مراجعاتي الفنية",
     "approvals": "الموافقات",
     "approvalHistory": "سجل الموافقات",
     "openRequests": "طلبات الشراء المفتوحة",
     "myMaintenance": "طلباتي للصيانة",
     "engineerMaintenanceStatus": "حالة الصيانة",
+    "technicalReviewsInspections": "المراجعات والفحوصات الفنية",
     "technicalInspections": "الفحوصات الفنية",
     "warehouseInventory": "رصيد المخزن",
     "itemMaster": "بيانات الأصناف الرئيسية",
@@ -573,6 +577,7 @@
       "availableQuantity": "المتوفر: {{count}}"
     },
     "itemStatus": {
+      "availableInStock": "متوفر في المخزون",
       "pending": "قيد المراجعة",
       "approved": "مقبول",
       "rejected": "مرفوض"
@@ -1199,6 +1204,7 @@
       "clearFilters": "مسح جميع عوامل التصفية"
     },
     "actions": {
+      "surgicalConsignment": {"label": "طلب أمانة جراحية", "aria": "فتح طلبات الأمانات الجراحية", "description": "طلب مستلزمات جراحية من الشركة وتسوية الفوترة حسب الاستخدام المؤكد."},
       "retry": "إعادة المحاولة",
       "stockRequest": {
         "label": "طلب مواد مخزنية",
@@ -1646,6 +1652,7 @@
         "status": "الحالة"
       },
       "statusLabels": {
+        "availableInStock": "متوفر في المخزون",
         "purchased": "تم الشراء",
         "partiallyPurchased": "تم الشراء جزئياً",
         "notPurchased": "غير مشتراة"
@@ -2048,6 +2055,7 @@
     "emptyState": "لا توجد سجلات عهدة صادرة حتى الآن.",
     "emptyStateFiltered": "لا توجد سجلات عهدة مطابقة لمرشحاتك.",
     "statusLabels": {
+      "availableInStock": "متوفر في المخزون",
       "pending": "قيد الانتظار",
       "approved": "موافق",
       "rejected": "مرفوض",
@@ -2237,6 +2245,7 @@
     "total": "الإجمالي",
     "itemStatus": "حالة العنصر",
     "itemStatusLabels": {
+      "availableInStock": "متوفر في المخزون",
       "purchased": "تم الشراء",
       "partiallyPurchased": "تم الشراء جزئياً",
       "notPurchased": "لم يتم الشراء"
@@ -2379,6 +2388,7 @@
     "noItems": "لم يتم تضمين أي أصناف في هذا الطلب.",
     "unnamedItem": "صنف بلا اسم",
     "itemStatus": {
+      "availableInStock": "متوفر في المخزون",
       "purchased": "تم الشراء",
       "partiallyPurchased": "تم الشراء جزئياً",
       "notPurchased": "لم يتم الشراء"
