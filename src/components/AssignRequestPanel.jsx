@@ -1,9 +1,11 @@
+import useUiTranslation from "../utils/useUiTranslation";
 //src/components/AssignRequestPanel.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "../api/axios";
 import { Button } from "./ui/Button";
 
-const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
+const AssignRequestPanel = ({ requestId, currentAssignee, currentAssigneeId, onSuccess }) => {
+  const uiText = useUiTranslation();
   const [users, setUsers] = useState([]);
   const [items, setItems] = useState([]);
   const [selectedUser, setSelectedUser] = useState("");
@@ -17,7 +19,7 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
   useEffect(() => {
     const fetchProcurementUsers = async () => {
       try {
-        const res = await axios.get("/requests/procurement-users");
+        const res = await axios.get("/requests/procurement-users", { params: { request_id: requestId } });
         setUsers(res.data);
       } catch (err) {
         console.error("❌ Failed to fetch procurement users:", err);
@@ -26,7 +28,7 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
     };
 
     fetchProcurementUsers();
-  }, []);
+  }, [requestId]);
 
   useEffect(() => {
     const fetchRequestItems = async () => {
@@ -83,6 +85,7 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
       await axios.put("/requests/assign-procurement", {
         request_id: requestId,
         user_id: selectedUser,
+        expected_assignee_id: currentAssigneeId,
       });
       setMessage({
         type: "success",
@@ -112,6 +115,8 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
     try {
       await axios.put(`/requests/${requestId}/split-assign-procurement`, {
         assignments: splitAssignments,
+        expected_assignee_id: currentAssigneeId,
+        expected_item_assignees: Object.fromEntries(assignableItems.filter(item => splitAssignments.some(a => a.requested_item_ids.includes(Number(item.id)))).map(item => [item.id, item.assigned_to ?? null])),
       });
       setMessage({
         type: "success",
@@ -174,7 +179,7 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
                 </option>
               ))
             ) : (
-              <option disabled>Loading users...</option>
+              <option disabled>{uiText("Loading users...")}</option>
             )}
           </select>
 
@@ -184,7 +189,7 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
             fullWidth
             disabled={loading || users.length === 0}
           >
-            {currentAssignee ? "Reassign" : "Assign"}
+            {currentAssignee ? uiText("Reassign") : uiText("Assign")}
           </Button>
         </>
       ) : (
@@ -200,10 +205,10 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
               <table className="w-full border text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left">
-                    <th className="border p-2">Item</th>
-                    <th className="border p-2">Qty</th>
+                    <th className="border p-2">{uiText("Item")}</th>
+                    <th className="border p-2">{uiText("Qty")}</th>
                     <th className="border p-2">Procurement User</th>
-                    <th className="border p-2">Notes</th>
+                    <th className="border p-2">{uiText("Notes")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -220,7 +225,7 @@ const AssignRequestPanel = ({ requestId, currentAssignee, onSuccess }) => {
                           onChange={(e) => setItemAssignments((prev) => ({ ...prev, [item.id]: e.target.value }))}
                           className="w-full rounded border p-2"
                         >
-                          <option value="">Unassigned</option>
+                          <option value="">{uiText("Unassigned")}</option>
                           {users.map((user) => (
                             <option key={user.id} value={user.id}>
                               {user.name} ({user.role})

@@ -1,3 +1,4 @@
+import useUiTranslation from "../utils/useUiTranslation";
 import React, { useMemo, useState } from "react";
 import { ArrowRight, CalendarRange, PackageCheck, TrendingDown, TrendingUp } from "lucide-react";
 import {
@@ -18,6 +19,8 @@ import {
   saveReplenishmentPolicy,
   runMrp,
 } from "../api/planning";
+import useCurrentUser from "../hooks/useCurrentUser";
+import { hasPermission } from "../utils/permissions";
 import formatNumber from "../utils/formatNumber";
 import ForecastingDemandModuleCard from "../components/planning/ForecastingDemandModuleCard";
 
@@ -81,6 +84,11 @@ export const summarizeForecast = (forecast = []) => {
 };
 
 const PlanningWorkbench = () => {
+  const uiText = useUiTranslation();
+  const { user } = useCurrentUser();
+  const canManage = hasPermission(user,'planning.manage');
+  const canManageInstitute = hasPermission(user,'planning.cross-department') && hasPermission(user,'planning.cross-warehouse');
+  const canReplenish = hasPermission(user,'replenishment.manage');
   const [forecastForm, setForecastForm] = useState(defaultForecastForm);
   const [sopRows, setSopRows] = useState([]);
   const [seasonalityRows, setSeasonalityRows] = useState([]);
@@ -115,6 +123,7 @@ const PlanningWorkbench = () => {
   const [defaultsMessage, setDefaultsMessage] = useState("");
 
   const loadPlanningDefaults = async () => {
+    try {
     const warehouseId = defaultsWarehouseId ? Number(defaultsWarehouseId) : undefined;
     const res = await fetchPlanningDefaults(warehouseId);
     const s = res.data.settings || {};
@@ -123,9 +132,11 @@ const PlanningWorkbench = () => {
     setMrpItem((f) => ({ ...f, horizon_days: Number(s.mrp_horizon_days || 84), bucket_days: Number(s.mrp_bucket_days || 7), lead_time_days: Number(s.safety_lead_time_days || 14) }));
     setPolicyForm((f) => ({ ...f, lead_time_days: Number(s.safety_lead_time_days || 14), review_period_days: Number(s.safety_review_period_days || 7), warehouse_id: warehouseId || f.warehouse_id }));
     setDefaultsMessage("Defaults loaded.");
+    } catch (error) { setDefaultsMessage(error.response?.data?.message || "Unable to load defaults"); }
   };
 
   const savePlanningDefaults = async () => {
+    try {
     await savePlanningDefaultsApi({
       warehouse_id: defaultsWarehouseId ? Number(defaultsWarehouseId) : null,
       forecast_horizon_months: forecastForm.horizon_months,
@@ -136,6 +147,7 @@ const PlanningWorkbench = () => {
       mrp_bucket_days: mrpItem.bucket_days,
     });
     setDefaultsMessage("Defaults saved.");
+    } catch (error) { setDefaultsMessage(error.response?.data?.message || "Unable to save defaults"); }
   };
 
   const addSopRow = () => {
@@ -393,7 +405,7 @@ const PlanningWorkbench = () => {
             <tr>
               <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Need by</th>
               <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Release</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Quantity</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">{uiText("Quantity")}</th>
               <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Bucket</th>
             </tr>
           </thead>
@@ -414,7 +426,7 @@ const PlanningWorkbench = () => {
         </table>
       </div>
     );
-  }, [mrpResult]);
+  }, [mrpResult, uiText]);
 
   const forecastInsights = useMemo(
     () => summarizeForecast(forecastResult?.forecast),
@@ -453,11 +465,11 @@ const PlanningWorkbench = () => {
         <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-end gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Warehouse override (optional)</label>
-              <input className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm" value={defaultsWarehouseId} onChange={(e) => setDefaultsWarehouseId(e.target.value)} placeholder="Global defaults when blank" />
+              <label htmlFor="planning-defaults-warehouse" className="block text-sm font-medium text-gray-700">Warehouse override (optional)</label>
+              <input id="planning-defaults-warehouse" className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm" value={defaultsWarehouseId} onChange={(e) => setDefaultsWarehouseId(e.target.value)} placeholder="Institute defaults when blank" />
             </div>
             <button type="button" onClick={loadPlanningDefaults} className="rounded bg-slate-700 px-3 py-2 text-sm font-medium text-white">Load defaults</button>
-            <button type="button" onClick={savePlanningDefaults} className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white">Save current as defaults</button>
+            <button type="button" onClick={savePlanningDefaults} disabled={!canManage || (!defaultsWarehouseId && !canManageInstitute)} className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white">Save current as defaults</button>
           </div>
           {defaultsMessage && <p className="mt-2 text-sm text-green-700">{defaultsMessage}</p>}
         </section>
@@ -474,9 +486,7 @@ const PlanningWorkbench = () => {
 
             <form className="mt-4 space-y-4" onSubmit={handleForecastSubmit}>
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="forecast-item">
-                  Item name
-                </label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="forecast-item">{uiText("Item name")}</label>
                 <input
                   id="forecast-item"
                   type="text"
@@ -486,7 +496,7 @@ const PlanningWorkbench = () => {
                   }
                   required
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="e.g. Surgical gloves"
+                  placeholder={uiText("e.g. Surgical gloves")}
                 />
               </div>
 
@@ -600,9 +610,7 @@ const PlanningWorkbench = () => {
                           type="button"
                           onClick={() => removeSopRow(index)}
                           className="text-sm font-semibold text-red-600 hover:text-red-700"
-                        >
-                          Remove
-                        </button>
+                        >{uiText("Remove")}</button>
                       </div>
                     </div>
                   ))}
@@ -638,7 +646,7 @@ const PlanningWorkbench = () => {
                         <input type="number" step="0.01" min="0" value={row.factor} onChange={(e) => updateFactorRow(group.setter, index, "factor", Number(e.target.value))} className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm" />
                       </div>
                       <div className="flex justify-end">
-                        <button type="button" onClick={() => removeFactorRow(group.setter, index)} className="text-sm font-semibold text-red-600 hover:text-red-700">Remove</button>
+                        <button type="button" onClick={() => removeFactorRow(group.setter, index)} className="text-sm font-semibold text-red-600 hover:text-red-700">{uiText("Remove")}</button>
                       </div>
                     </div>
                   ))}
@@ -674,9 +682,7 @@ const PlanningWorkbench = () => {
             <form className="space-y-4" onSubmit={handleSafetySubmit}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="safety-item">
-                    Item name
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="safety-item">{uiText("Item name")}</label>
                   <input
                     id="safety-item"
                     type="text"
@@ -713,9 +719,7 @@ const PlanningWorkbench = () => {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="lead-time">
-                    Lead time (days)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="lead-time">{uiText("Lead time (days)")}</label>
                   <input
                     id="lead-time"
                     type="number"
@@ -928,9 +932,7 @@ const PlanningWorkbench = () => {
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="policy-lead">
-                  Lead time (days)
-                </label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="policy-lead">{uiText("Lead time (days)")}</label>
                 <input
                   id="policy-lead"
                   type="number"
@@ -982,15 +984,15 @@ const PlanningWorkbench = () => {
               <button
                 type="submit"
                 className="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
-                disabled={policyLoading}
+                disabled={policyLoading || !canReplenish}
               >
-                {policyLoading ? "Saving…" : "Save policy"}
+                {policyLoading ? uiText("Saving…") : "Save policy"}
               </button>
               <button
                 type="button"
                 onClick={handleReplenishmentRun}
                 className="inline-flex items-center justify-center rounded border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-700 shadow-sm hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
-                disabled={replenishmentLoading || !policyForm.warehouse_id}
+                disabled={!canReplenish || replenishmentLoading || !policyForm.warehouse_id}
               >
                 {replenishmentLoading ? "Generating…" : "Run replenishment"}
               </button>
@@ -1026,11 +1028,11 @@ const PlanningWorkbench = () => {
               <table className="min-w-full divide-y divide-amber-100 text-sm">
                 <thead className="bg-amber-50 text-amber-700">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">Item</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">{uiText("Item")}</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">Current qty</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">Reorder point</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">Suggested qty</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">Due date</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide">{uiText("Due date")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-amber-100">
@@ -1080,9 +1082,7 @@ const PlanningWorkbench = () => {
           <form className="mt-4 space-y-6" onSubmit={handleMrpSubmit}>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="mrp-item">
-                  Item name
-                </label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="mrp-item">{uiText("Item name")}</label>
                 <input
                   id="mrp-item"
                   type="text"
@@ -1223,9 +1223,7 @@ const PlanningWorkbench = () => {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600" htmlFor={`demand-qty-${index}`}>
-                        Quantity
-                      </label>
+                      <label className="block text-xs font-medium text-gray-600" htmlFor={`demand-qty-${index}`}>{uiText("Quantity")}</label>
                       <input
                         id={`demand-qty-${index}`}
                         type="number"
@@ -1242,9 +1240,7 @@ const PlanningWorkbench = () => {
                         type="button"
                         onClick={() => removeDemandRow(index)}
                         className="text-sm font-semibold text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
+                      >{uiText("Remove")}</button>
                     </div>
                   </div>
                 ))}
@@ -1269,9 +1265,7 @@ const PlanningWorkbench = () => {
                 {openOrders.map((row, index) => (
                   <div key={`receipt-${index}`} className="grid gap-3 sm:grid-cols-5 sm:items-end">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600" htmlFor={`receipt-date-${index}`}>
-                        Due date
-                      </label>
+                      <label className="block text-xs font-medium text-gray-600" htmlFor={`receipt-date-${index}`}>{uiText("Due date")}</label>
                       <input
                         id={`receipt-date-${index}`}
                         type="date"
@@ -1281,9 +1275,7 @@ const PlanningWorkbench = () => {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600" htmlFor={`receipt-qty-${index}`}>
-                        Quantity
-                      </label>
+                      <label className="block text-xs font-medium text-gray-600" htmlFor={`receipt-qty-${index}`}>{uiText("Quantity")}</label>
                       <input
                         id={`receipt-qty-${index}`}
                         type="number"
@@ -1300,9 +1292,7 @@ const PlanningWorkbench = () => {
                         type="button"
                         onClick={() => removeOpenOrder(index)}
                         className="text-sm font-semibold text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
+                      >{uiText("Remove")}</button>
                     </div>
                   </div>
                 ))}

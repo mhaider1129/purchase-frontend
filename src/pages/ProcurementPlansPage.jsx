@@ -1,12 +1,16 @@
+import useUiTranslation from "../utils/useUiTranslation";
 import { openProtectedFile } from '../api/attachments';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/axios';
+import { hasPermission } from '../utils/permissions';
 import useCurrentUser from '../hooks/useCurrentUser';
 import PageShell from '../components/layout/PageShell';
 import AmountInput from '../components/ui/AmountInput';
 
 const ProcurementPlansPage = () => {
+  const uiText = useUiTranslation();
   const { user } = useCurrentUser();
+  const canManage = hasPermission(user,'planning.manage');
   const [plans, setPlans] = useState([]);
   const [year, setYear] = useState(new Date().getFullYear());
   const [file, setFile] = useState(null);
@@ -20,6 +24,7 @@ const ProcurementPlansPage = () => {
   const [planItems, setPlanItems] = useState([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [itemsError, setItemsError] = useState('');
+  const [dataLimitations,setDataLimitations] = useState([]);
   const [integrationInsights, setIntegrationInsights] = useState([]);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [itemForm, setItemForm] = useState({
@@ -107,6 +112,7 @@ const ProcurementPlansPage = () => {
         ]);
         setPlanItems(varianceRes.data || []);
         setIntegrationInsights(insightsRes.data?.items || []);
+        setDataLimitations(insightsRes.data?.data_limitations || []);
       } catch (err) {
         console.error('Failed to load plan items', err);
         setItemsError('Unable to load plan line items. Please try again.');
@@ -230,9 +236,7 @@ const ProcurementPlansPage = () => {
             <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Uploaded On
             </th>
-            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Actions
-            </th>
+            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{uiText("Actions")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
@@ -259,9 +263,7 @@ const ProcurementPlansPage = () => {
                       type="button"
                       onClick={() => openProtectedFile(downloadUrl, plan.file_name || 'plan', true).catch(() => setError('Unable to download plan'))}
                       className="text-blue-600 hover:text-blue-700 font-semibold"
-                    >
-                      View
-                    </button>
+                    >{uiText("View")}</button>
                   ) : (
                     <span className="text-gray-400">Unavailable</span>
                   )}
@@ -284,9 +286,9 @@ const ProcurementPlansPage = () => {
       <table className="min-w-full divide-y divide-gray-200" aria-label="Integrated planning insights table">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{uiText("Item")}</th>
             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Demand/mo</th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Lead time (days)</th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">{uiText("Lead time (days)")}</th>
             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Seasonal index</th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Recommended action</th>
           </tr>
@@ -316,15 +318,11 @@ const ProcurementPlansPage = () => {
       <table className="min-w-full divide-y divide-gray-200" aria-label="Plan item variance table">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Item
-            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{uiText("Item")}</th>
             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Planned Qty
             </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Requested Qty
-            </th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">{uiText("Requested Qty")}</th>
             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Consumed Qty
             </th>
@@ -363,7 +361,7 @@ const ProcurementPlansPage = () => {
 
   return (
     <PageShell
-      title="Procurement Plans"
+      title={uiText("Procurement Plans")}
       description="Upload and review annual procurement plans for your department. Use the filters to quickly find historical plans and confirm compliance."
       actions={
         <button
@@ -388,8 +386,7 @@ const ProcurementPlansPage = () => {
               ))}
             </select>
           </label>
-          <label className="text-sm font-medium text-gray-700 md:col-span-2">Search
-            <input
+          <label className="text-sm font-medium text-gray-700 md:col-span-2">{uiText("Search")}<input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -401,12 +398,14 @@ const ProcurementPlansPage = () => {
       }
       kpis={kpis}
     >
+      {!canManage && <p className="text-sm text-gray-600">Read-only planning access. Plan preparation requires planning management permission.</p>}
       <section className="grid gap-6 md:grid-cols-2">
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">Upload a plan</h2>
             <p className="mt-1 text-sm text-gray-600">
               Accepted file types include PDF, Excel, and Word documents up to 10MB.
             </p>
+            <fieldset disabled={!canManage} aria-label="Upload plan">
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700" htmlFor="plan-year">
@@ -445,7 +444,7 @@ const ProcurementPlansPage = () => {
                 className="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 disabled={loading}
               >
-                {loading ? 'Uploading…' : 'Upload plan'}
+                {loading ? uiText("Uploading…") : 'Upload plan'}
               </button>
               {renderStatusMessage() && (
                 <div
@@ -464,6 +463,7 @@ const ProcurementPlansPage = () => {
                 </div>
               )}
             </form>
+            </fieldset>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -509,11 +509,10 @@ const ProcurementPlansPage = () => {
               </select>
             </div>
 
+            <fieldset disabled={!canManage} aria-label="Prepare plan items">
             <form onSubmit={handleItemSubmit} className="grid gap-3 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700" htmlFor="item-name">
-                  Item name
-                </label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="item-name">{uiText("Item name")}</label>
                 <input
                   id="item-name"
                   type="text"
@@ -552,9 +551,7 @@ const ProcurementPlansPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="unit-of-measure">
-                  Unit of measure
-                </label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="unit-of-measure">{uiText("Unit of measure")}</label>
                 <input
                   id="unit-of-measure"
                   type="text"
@@ -564,9 +561,7 @@ const ProcurementPlansPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="currency">
-                  Currency
-                </label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="currency">{uiText("Currency")}</label>
                 <input
                   id="currency"
                   type="text"
@@ -596,6 +591,7 @@ const ProcurementPlansPage = () => {
                 </button>
               </div>
             </form>
+            </fieldset>
           </div>
 
           {itemsError && (
@@ -608,6 +604,7 @@ const ProcurementPlansPage = () => {
 
           <div className="pt-4">
             <h3 className="text-md font-semibold text-gray-900">Integrated planning insights</h3>
+            {dataLimitations.map(note => <p key={note} className="text-sm text-gray-600">{note}</p>)}
             <p className="mt-1 text-sm text-gray-600">
               Connect plan items to consumption history, demand planning, reorder policy, lead time, and seasonal usage.
             </p>

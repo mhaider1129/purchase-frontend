@@ -1,3 +1,4 @@
+import useUiTranslation from "./utils/useUiTranslation";
 // src/App.js
 import React from "react";
 import {
@@ -138,12 +139,13 @@ const ProtectedRoute = ({
   resourceKey,
   routeKey,
 }) => {
+  const uiText = useUiTranslation();
   const { isAuthenticated, isLoading, user } = useAuth();
   const { resolvePermissions } = useAccessControl();
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="p-6 text-center text-gray-600">Loading...</div>;
+    return <div className="p-6 text-center text-gray-600">{uiText("Loading...")}</div>;
   }
 
   if (!isAuthenticated) {
@@ -348,8 +350,7 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute
           element={<BudgetControlPage />}
-          requiredPermissions={["dashboard.view"]}
-          allowedRoles={["scm", "admin", "finance", "financeapprover", "cfo"]}
+          requiredPermissions={["procure-to-pay.lifecycle.view"]}
         />
       }
     />
@@ -741,7 +742,8 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute
           element={<ProcurementPlansPage />}
-          resourceKey="feature.procurementPlans"
+          requiredPermissions={["planning.view", "planning.manage"]}
+          resourceKey="feature.procurementPlanning"
         />
       }
     />
@@ -759,8 +761,7 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute
           element={<ProcurementEvaluationsPage />}
-          allowedRoles={["admin", "SCM", "ProcurementSupervisor", "ProcurementSpecialist"]}
-          requiredPermissions={["evaluations.manage", "procurement.update-status"]}
+          requiredPermissions={["evaluations.manage"]}
         />
       }
     />
@@ -769,8 +770,7 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute
           element={<ProcurementEvaluationDetail />}
-          allowedRoles={["admin", "SCM", "ProcurementSupervisor", "ProcurementSpecialist", "CMO", "CFO", "COO", "CEO"]}
-          requiredPermissions={["evaluations.manage", "procurement.update-status", "requests.view-all"]}
+          requiredPermissions={["evaluations.manage"]}
         />
       }
     />
@@ -865,7 +865,7 @@ const AppRoutes = () => (
         />
       }
     />
-    <Route path="/rfx-portal" element={<RfxPortalPage />} />
+    <Route path="/rfx-portal" element={<ProtectedRoute element={<RfxPortalPage />} requiredPermissions={["rfx.manage"]} />} />
     <Route path="/supplier-portal-readiness" element={<ProtectedRoute element={<SupplierPortalReadinessPage />} />} />
     <Route
       path="/supplier-evaluations"
@@ -1015,7 +1015,7 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute
           element={<PlanningWorkbench />}
-          allowedRoles={["SCM", "admin"]}
+          requiredPermissions={["planning.view", "planning.manage", "replenishment.manage"]}
           resourceKey="feature.demandPlanning"
         />
       }
