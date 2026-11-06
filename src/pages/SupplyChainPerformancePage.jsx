@@ -12,7 +12,7 @@ const pretty = value => String(value || 'Unclassified').replaceAll('_', ' ').rep
 const coverageTone = { FULL: 'bg-emerald-50 text-emerald-700', PARTIAL: 'bg-amber-50 text-amber-700', MISSING: 'bg-slate-100 text-slate-600', LEGACY_INCOMPLETE: 'bg-orange-50 text-orange-700' };
 
 const Metric = ({ label, value, helper, icon: Icon, coverage }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div role="group" aria-label={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-blue-50 p-2 text-blue-700"><Icon className="h-5 w-5" /></span>{coverage && <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${coverageTone[coverage] || coverageTone.MISSING}`}>{coverage.replaceAll('_', ' ')}</span>}</div>
     <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 text-3xl font-bold text-slate-950">{value}</p><p className="mt-1 text-xs text-slate-500">{helper}</p>
   </div>
@@ -36,6 +36,14 @@ export default function SupplyChainPerformancePage() {
         <Metric label="Departments" value={number(data?.metrics?.demand?.departments)} helper="Contributing demand" icon={Users} coverage={data?.metrics?.demand?.coverage}/>
         <Metric label="Portfolio workload" value={`${number(totalPwu)} PWU`} helper={`${number(data?.metrics?.complexity?.assessed_cases)} assessed cases`} icon={Activity} coverage={data?.metrics?.complexity?.coverage}/>
         <Metric label="Open constraints" value={number(pending.reduce((s,x)=>s+Number(x.count||0),0))} helper="Cases with a recorded root cause" icon={AlertTriangle}/>
+      </section>
+      <section aria-label={uiText('Verified receiving and fulfillment')} className="space-y-3">
+        <h2 className="text-lg font-semibold">{uiText('Verified receiving and fulfillment')}</h2>
+        <p className="text-sm text-slate-600">{uiText('Current accepted receiving and department fulfillment within the filtered case population.')}</p>
+        {data?.metrics?.completion?.basis==='canonical_quantities' ? <div className="grid gap-4 sm:grid-cols-2">
+          <Metric label={uiText('Cases with accepted receiving')} value={data.metrics.completion.accepted_delivery_cases==null?uiText('Not available'):number(data.metrics.completion.accepted_delivery_cases)} helper={uiText('Based on current verified quantities')} icon={Boxes}/>
+          <Metric label={uiText('Cases with department fulfillment')} value={data.metrics.completion.fulfilled_cases==null?uiText('Not available'):number(data.metrics.completion.fulfilled_cases)} helper={uiText('Based on current verified quantities')} icon={Users}/>
+        </div> : <p role="status">{uiText('Verified receiving metrics are unavailable.')}</p>}
       </section>
       <section className="grid gap-6 lg:grid-cols-5">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-3" aria-label="Complexity Mix"><div className="mb-5"><h2 className="text-lg font-semibold text-slate-900">Complexity mix</h2><p className="text-sm text-slate-500">Case volume and derived workload by complexity class.</p></div><div className="sr-only">{complexity.map(x=>`Class ${x.class}: ${x.count}`).join(', ')}</div>{complexity.length ? <ResponsiveContainer width="100%" height={300}><BarChart data={complexity}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="class" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip/><Bar dataKey="count" name="Cases" fill="#2563eb" radius={[6,6,0,0]}/><Bar dataKey="pwu" name="PWU" fill="#8b5cf6" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer> : <EmptyChart/>}</article>
